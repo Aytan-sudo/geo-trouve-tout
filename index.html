@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Géo Trouve-Tout</title>
+<meta name="description" content="Un planisphère muet, un pays qui s’allume : nommez-le, au doigt ou au clavier. Le jeu retient ce que vous ne savez pas. Hors ligne, sans serveur.">
+<meta name="theme-color" content="#f4f6f2" id="couleur-barre">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icon-180.png">
+<link rel="stylesheet" href="css/themes.css">
+<link rel="stylesheet" href="css/carte.css">
+<link rel="stylesheet" href="css/interface.css">
+<script>
+    // Le theme se pose avant le premier pixel.
+    //
+    // js/themes.js sait le faire, mais il arrive avec app.js, module differe :
+    // la page s'afficherait une fraction de seconde en vert d'ecole avant de
+    // virer au theme choisi. Ces quelques lignes-la, et elles seules, ont le
+    // droit de doubler la liste des themes — tests/test-themes.mjs compare les
+    // deux et refuse qu'elles divergent.
+    try {
+        const THEMES = { ecolier: '#f4f6f2', atlas: '#f6f1e4', marine: '#0e1b2a', encre: '#15171d', craie: '#1b2420' };
+        const preferences = JSON.parse(localStorage.getItem('geo.preferences') || '{}');
+        const couleur = THEMES[preferences.theme];
+        if (couleur) {
+            document.documentElement.dataset.theme = preferences.theme;
+            document.getElementById('couleur-barre').content = couleur;
+        }
+    } catch { /* l'ecolier reste disponible */ }
+</script>
+</head>
+<body>
+
+<div class="page">
+
+    <header class="barre">
+        <button type="button" class="icone titre" id="stats-ouvrir" aria-label="Résultats et séries">
+            <span>
+                <h1>Géo Trouve-Tout</h1>
+                <p id="titre-mode">Défi du jour</p>
+            </span>
+        </button>
+        <button type="button" class="icone" id="aide-ouvrir" aria-label="Règles du jeu">?</button>
+        <button type="button" class="icone" id="theme-basculer" aria-label="Changer de thème">◐</button>
+        <button type="button" class="icone" id="options-ouvrir" aria-label="Options">⚙</button>
+        <button type="button" class="icone" id="son-basculer" aria-label="Son" aria-pressed="true">♪</button>
+    </header>
+
+    <section class="compteurs" aria-label="Progression">
+        <ol class="pastilles" id="pastilles" aria-label="Questions de la manche"></ol>
+        <div class="chiffres">
+            <strong id="valeur-score" aria-live="polite">0</strong>
+            <span id="valeur-chrono">0:00</span>
+        </div>
+    </section>
+
+    <main class="scene">
+        <div class="carte" id="carte"></div>
+        <button type="button" class="recentrer" id="action-recentrer" aria-label="Revoir toute la carte">⌖</button>
+        <p class="indice" id="indice" hidden></p>
+        <div class="legende" id="legende" hidden>
+            <span><i class="pastille acquis"></i>Acquis</span>
+            <span><i class="pastille hesitant"></i>Hésitant</span>
+            <span><i class="pastille inconnu"></i>Jamais vu</span>
+        </div>
+    </main>
+
+    <section class="reponse" id="reponse">
+        <p class="enonce" id="enonce">Chargement de la carte…</p>
+
+        <div class="choix" id="choix"></div>
+
+        <div class="saisie" id="saisie" hidden>
+            <div class="ardoise">
+                <output id="saisie-texte" aria-live="off"></output>
+                <button type="button" class="effacer" id="saisie-effacer" aria-label="Effacer une lettre">⌫</button>
+            </div>
+            <ul class="suggestions" id="suggestions" aria-label="Propositions"></ul>
+            <div class="clavier" id="clavier"
+                 data-cible-libre="touches de clavier : dix par rangée font 440 px, plus que la largeur de l’écran — iOS fait de même"></div>
+        </div>
+
+        <p class="consigne" id="consigne" hidden>Touchez le pays sur la carte.</p>
+
+        <ul class="a-revoir" id="a-revoir" aria-label="Pays à revoir" hidden></ul>
+    </section>
+
+    <div class="verdict" id="verdict" hidden>
+        <strong id="verdict-titre"></strong>
+        <small id="verdict-detail"></small>
+        <button type="button" class="primaire" id="verdict-suivant">Suivant</button>
+    </div>
+
+    <nav class="navigation" aria-label="Modes de jeu">
+        <button type="button" id="nav-jour"><span>Chaque jour</span><strong>Défi du jour</strong></button>
+        <button type="button" id="nav-libre"><span>Vos réglages</span><strong>Partie libre</strong></button>
+        <button type="button" id="nav-progression"><span>Vos progrès</span><strong>Ma carte</strong></button>
+    </nav>
+
+</div>
+
+<p class="annonce" id="annonce" role="status" aria-live="polite"></p>
+
+<dialog id="dialogue-aide">
+    <div class="feuille">
+        <div class="feuille-entete">
+            <div><p class="legende-feuille">Le tour du monde</p><h2>Trouver les pays</h2></div>
+            <button type="button" class="fermer" data-fermer aria-label="Fermer">×</button>
+        </div>
+        <p>Un pays s’allume sur la carte. Vous le nommez — en choisissant parmi quatre propositions, ou en l’écrivant vous-même si vous jouez en Expert.</p>
+        <div class="regles">
+            <article><b>01</b><div><strong>Regardez la forme</strong><p>La carte se rapproche du pays cherché. Pincez pour zoomer davantage, glissez pour vous promener, et touchez la mire pour revoir le monde entier.</p></div></article>
+            <article><b>02</b><div><strong>Répondez</strong><p>Dix questions par manche. Une réponse juste allume une pastille verte en haut de l’écran.</p></div></article>
+            <article><b>03</b><div><strong>Le jeu vous suit</strong><p>Chaque pays que vous ratez revient plus vite dans les manches suivantes. Ceux que vous savez s’espacent.</p></div></article>
+            <article><b>04</b><div><strong>Votre carte se colorie</strong><p>Dans « Ma carte », le planisphère prend la couleur de ce que vous savez. Ce qui reste pâle est ce qu’il reste à apprendre.</p></div></article>
+        </div>
+
+        <h3>Les niveaux</h3>
+        <p>Quatre sacs de tirage, du plus connu au plus pointu. En <strong>Découverte</strong>, quarante pays et le continent en indice. En <strong>Écolier</strong>, une centaine, et les propositions viennent du même continent. En <strong>Voyageur</strong>, tous les pays, et les voisins servent de pièges. En <strong>Expert</strong>, le nom s’écrit.</p>
+
+        <h3>Écrire un nom</h3>
+        <p>Les accents, les traits d’union et les majuscules ne comptent pas : <i>etats unis</i> vaut <i>États-Unis</i>. Une lettre de travers passe aussi, et l’orthographe juste s’affiche. Mais écrire le nom d’un <em>autre</em> pays reste une erreur, même s’il n’en diffère que d’une lettre — l’Iran n’est pas l’Irak.</p>
+
+        <h3>Les trois sens</h3>
+        <p><strong>Nommer</strong> le pays allumé, le <strong>trouver</strong> sur la carte muette à partir de son nom, ou donner sa <strong>capitale</strong>. Réglable dans les Options, et mélangeable.</p>
+
+        <h3>Au clavier</h3>
+        <p><kbd>1</kbd>–<kbd>4</kbd> choisissent une proposition, <kbd>Entrée</kbd> valide, <kbd>N</kbd> lance une nouvelle manche, <kbd>R</kbd> relance la même, <kbd>T</kbd> change de thème, <kbd>?</kbd> ouvre cette notice, <kbd>Échap</kbd> ferme.</p>
+        <div class="feuille-actions"><button type="button" class="primaire" data-fermer>Commencer</button></div>
+    </div>
+</dialog>
+
+<dialog id="dialogue-options">
+    <div class="feuille">
+        <div class="feuille-entete">
+            <div><p class="legende-feuille">La salle des cartes</p><h2>Options</h2></div>
+            <button type="button" class="fermer" data-fermer aria-label="Fermer">×</button>
+        </div>
+
+        <h3>Partie libre</h3>
+        <div class="reglage">
+            <label for="choix-atlas">Carte</label>
+            <select id="choix-atlas"></select>
+        </div>
+        <div class="reglage">
+            <label for="choix-niveau">Niveau</label>
+            <select id="choix-niveau"></select>
+        </div>
+        <p class="explication" id="explication-niveau"></p>
+        <div class="reglage">
+            <label for="choix-sens">Question</label>
+            <select id="choix-sens"></select>
+        </div>
+        <p class="explication" id="explication-sens"></p>
+        <div class="reglage">
+            <label for="choix-rythme">Rythme</label>
+            <select id="choix-rythme"></select>
+        </div>
+        <div class="reglage">
+            <label for="choix-chrono">Chrono</label>
+            <select id="choix-chrono"></select>
+        </div>
+
+        <h3>Thème</h3>
+        <div class="choix-theme" id="choix-theme" role="group" aria-label="Thème"></div>
+
+        <h3>Sensations</h3>
+        <label class="option"><input type="checkbox" id="option-sons"><span><strong>Sons</strong><small>Une note montante pour une réponse juste, une note basse sinon.</small></span></label>
+        <label class="option"><input type="checkbox" id="option-vibration"><span><strong>Vibration</strong><small>Une brève secousse confirme la réponse.</small></span></label>
+        <label class="option"><input type="checkbox" id="option-signes"><span><strong>Signes et motifs</strong><small>Une trame et une épingle marquent le pays cherché, en plus de la couleur.</small></span></label>
+        <label class="option"><input type="checkbox" id="option-aide-saisie"><span><strong>Aide à la saisie</strong><small>Propose les noms qui commencent par ce que vous tapez. Sans effet en Expert.</small></span></label>
+        <label class="option"><input type="checkbox" id="option-memoire"><span><strong>Révision guidée</strong><small>Les pays ratés reviennent plus souvent que les autres. Décochez pour un tirage purement au hasard.</small></span></label>
+
+        <p class="version" id="version">Géo Trouve-Tout 1.0.0</p>
+        <div class="feuille-actions">
+            <button type="button" data-fermer>Fermer</button>
+            <button type="button" class="primaire" id="options-jouer">Nouvelle partie libre</button>
+        </div>
+    </div>
+</dialog>
+
+<dialog id="dialogue-stats">
+    <div class="feuille">
+        <div class="feuille-entete">
+            <div><p class="legende-feuille">Carnet de voyage</p><h2>Résultats</h2></div>
+            <button type="button" class="fermer" data-fermer aria-label="Fermer">×</button>
+        </div>
+        <div class="series">
+            <div><span>Série en cours</span><strong id="stat-serie">0</strong></div>
+            <div><span>Meilleure série</span><strong id="stat-record-serie">0</strong></div>
+            <div><span>Pays acquis</span><strong id="stat-acquis">0</strong></div>
+        </div>
+        <h3>Records par configuration</h3>
+        <p id="palmares-vide"><small>Aucune manche terminée pour l’instant.</small></p>
+        <ul class="palmares" id="palmares"></ul>
+        <h3>Défis récents</h3>
+        <p id="historique-vide"><small>Aucun défi du jour terminé.</small></p>
+        <ol class="historique" id="historique"></ol>
+        <div class="feuille-actions">
+            <button type="button" class="danger" id="effacer-stats">Tout effacer</button>
+            <button type="button" class="primaire" data-fermer>Fermer</button>
+        </div>
+    </div>
+</dialog>
+
+<dialog id="dialogue-fin">
+    <div class="feuille">
+        <div class="feuille-entete">
+            <div><p class="legende-feuille" id="fin-legende">Manche terminée</p><h2 id="fin-titre">Résultat</h2></div>
+            <button type="button" class="fermer" data-fermer aria-label="Fermer">×</button>
+        </div>
+        <dl class="resultat">
+            <div><dt>Score</dt><dd id="fin-score">0</dd></div>
+            <div><dt>Temps</dt><dd id="fin-duree">0:00</dd></div>
+            <div><dt>Série</dt><dd id="fin-serie">0</dd></div>
+        </dl>
+        <div class="verdict-final" id="fin-verdict"><strong id="fin-verdict-titre"></strong><small id="fin-verdict-detail"></small></div>
+        <h3 id="fin-rates-titre" hidden>Les pays manqués</h3>
+        <ul class="rates" id="fin-rates"></ul>
+        <div class="feuille-actions">
+            <button type="button" id="fin-rejouer-rates" hidden>Rejouer les ratés</button>
+            <button type="button" id="fin-partager">Partager</button>
+            <button type="button" class="primaire" id="fin-rejouer" autofocus>Nouvelle manche</button>
+        </div>
+    </div>
+</dialog>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

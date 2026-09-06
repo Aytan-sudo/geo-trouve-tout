@@ -1,0 +1,176 @@
+/* Les palettes, seule source des couleurs du jeu.
+ *
+ * Direction : un atlas scolaire. Une mer plate, des terres mates, des
+ * frontieres au trait clair, et une seule couleur pleine — celle du pays
+ * cherche. Elle n'a de concurrent nulle part ailleurs sur l'ecran.
+ *
+ * Une precaution vaut d'etre dite, parce qu'elle a dicte toutes les palettes :
+ * rouge sur vert est exactement la paire que huit pour cent des garcons ne
+ * distinguent pas, et le jeu vise d'abord des ecoliers. Le rouge est donc
+ * garde — c'est la couleur juste pour « c'est celui-la » — mais toujours
+ * beaucoup plus sombre que la terre qui l'entoure. Ce qui se voit alors n'est
+ * plus la teinte, c'est le contraste de clarte, et celui-la se voit de tous.
+ * L'option « signes » ajoute par-dessus une trame et une epingle.
+ *
+ * tests/test-themes.mjs compare chaque palette a celle de reference (ecolier) :
+ * une variable oubliee ne plante pas, elle laisse une couleur claire au milieu
+ * d'un theme sombre. */
+
+:root,
+[data-theme="ecolier"] {
+    --fond: #f4f6f2;
+    --surface: #ffffff;
+    --bord: #dde3da;
+    --texte: #24312b;
+    --texte-doux: #6e7d74;
+
+    --mer: #c5dfec;
+    --terre: #a9cf94;
+    --terre-trait: #f4f6f2;
+    --decor: #cfd2c8;
+    --decor-trait: #e6e8e2;
+    --cible: #a3231f;
+    --cible-halo: #a3231f40;
+    --epingle: #a3231f;
+
+    --juste: #2f7d46;
+    --faux: #a3231f;
+    --presque: #b8801c;
+
+    --acquis: #2f7d46;
+    --hesitant: #e0b03c;
+    --inconnu: #d5dcd2;
+
+    --accent: #1f5fa8;
+    --danger: #a3231f;
+    --voile: rgba(36, 49, 43, .5);
+    --ombre: 0 1px 0 rgba(36, 49, 43, .12);
+    --ombre-carte: 0 18px 48px rgba(36, 49, 43, .22);
+}
+
+[data-theme="atlas"] {
+    --fond: #f6f1e4;
+    --surface: #fffcf4;
+    --bord: #e2d8c2;
+    --texte: #33302a;
+    --texte-doux: #7f7565;
+
+    --mer: #d8e5e4;
+    --terre: #e0d3ac;
+    --terre-trait: #f6f1e4;
+    --decor: #cdc4ac;
+    --decor-trait: #e3dcca;
+    --cible: #a63a1c;
+    --cible-halo: #a63a1c40;
+    --epingle: #a63a1c;
+
+    --juste: #4a6b2f;
+    --faux: #a63a1c;
+    --presque: #b07c1b;
+
+    --acquis: #4a6b2f;
+    --hesitant: #d3a03a;
+    --inconnu: #ded4bd;
+
+    --accent: #2c6070;
+    --danger: #a63a1c;
+    --voile: rgba(51, 48, 42, .5);
+    --ombre: 0 1px 0 rgba(51, 48, 42, .12);
+    --ombre-carte: 0 18px 48px rgba(51, 48, 42, .22);
+}
+
+[data-theme="marine"] {
+    --fond: #0e1b2a;
+    --surface: #17293c;
+    --bord: #26405a;
+    --texte: #e8eef4;
+    --texte-doux: #93a7bb;
+
+    --mer: #102337;
+    --terre: #d5d0c2;
+    --terre-trait: #102337;
+    --decor: #46586c;
+    --decor-trait: #2b3d51;
+    --cible: #e8663a;
+    --cible-halo: #e8663a4d;
+    --epingle: #ffb08a;
+
+    --juste: #4fbf82;
+    --faux: #e8663a;
+    --presque: #e3b955;
+
+    --acquis: #4fbf82;
+    --hesitant: #e3b955;
+    --inconnu: #5d6f83;
+
+    --accent: #62a8e0;
+    --danger: #e0563a;
+    --voile: rgba(4, 10, 18, .68);
+    --ombre: 0 1px 0 rgba(0, 0, 0, .3);
+    --ombre-carte: 0 18px 48px rgba(0, 0, 0, .5);
+}
+
+[data-theme="encre"] {
+    --fond: #15171d;
+    --surface: #1e212a;
+    --bord: #2f3440;
+    --texte: #e9e9ee;
+    --texte-doux: #9599a5;
+
+    --mer: #11131a;
+    --terre: #3d4450;
+    --terre-trait: #11131a;
+    --decor: #262a33;
+    --decor-trait: #1a1d25;
+    --cible: #f0a93b;
+    --cible-halo: #f0a93b40;
+    --epingle: #ffd085;
+
+    --juste: #5fbb7d;
+    --faux: #e0614f;
+    --presque: #f0a93b;
+
+    --acquis: #5fbb7d;
+    --hesitant: #c08a2e;
+    --inconnu: #333944;
+
+    --accent: #7f9ff0;
+    --danger: #e0614f;
+    --voile: rgba(6, 7, 10, .68);
+    --ombre: 0 1px 0 rgba(0, 0, 0, .3);
+    --ombre-carte: 0 18px 48px rgba(0, 0, 0, .55);
+}
+
+/* La craie retourne le principe : la cible est le seul endroit clair de la
+ * carte. C'est la variante la plus lisible de toutes, et la seule ou la couleur
+ * ne porte rien du tout. */
+[data-theme="craie"] {
+    --fond: #1b2420;
+    --surface: #24302b;
+    --bord: #3a4a43;
+    --texte: #eef0e8;
+    --texte-doux: #9aa89f;
+
+    --mer: #1b2420;
+    --terre: #36463d;
+    --terre-trait: #6d8478;
+    --decor: #2a352f;
+    --decor-trait: #47574e;
+    --cible: #f2efe2;
+    --cible-halo: #f2efe24d;
+    --epingle: #f2efe2;
+
+    --juste: #a8d5a0;
+    --faux: #e8a09a;
+    --presque: #e8d59a;
+
+    --acquis: #a8d5a0;
+    --hesitant: #e8d59a;
+    --inconnu: #33413a;
+
+    --accent: #a8c8d5;
+    --danger: #e8a09a;
+    --voile: rgba(8, 12, 10, .68);
+    --ombre: 0 1px 0 rgba(0, 0, 0, .3);
+    --ombre-carte: 0 18px 48px rgba(0, 0, 0, .5);
+}

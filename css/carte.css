@@ -1,0 +1,91 @@
+/* La geometrie de la carte. Aucune couleur en dur : tout vient de themes.css. */
+
+.carte {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.planisphere {
+    width: 100%;
+    height: 100%;
+    display: block;
+    /* Les gestes de la carte sont a nous : pincement et glissement passent par
+     * js/entree.js. Sans cela, Safari fait defiler la page sous le doigt. */
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.vue {
+    transition: transform .55s cubic-bezier(.22, .61, .36, 1);
+}
+
+/* Pendant un glissement, la transition ferait trainer la carte d'un demi-tour
+ * de retard derriere le doigt. */
+.sans-transition .vue { transition: none; }
+
+.mer { fill: var(--mer); }
+
+.decor {
+    fill: var(--decor);
+    stroke: var(--decor-trait);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+}
+
+.pays-forme {
+    fill: var(--terre);
+    stroke: var(--terre-trait);
+    stroke-width: 1.1;
+    /* Les frontieres gardent leur epaisseur a l'ecran quel que soit le zoom :
+     * sans cela, un grossissement de dix les transformerait en rubans. */
+    vector-effect: non-scaling-stroke;
+    stroke-linejoin: round;
+    transition: fill .3s ease;
+}
+
+.pays-forme.cible { fill: var(--cible); }
+.pays-forme.juste { fill: var(--juste); }
+.pays-forme.faux { fill: var(--faux); }
+.pays-forme.indice { fill: var(--presque); }
+
+/* L'option « signes » : la cible ne se distingue plus seulement par sa couleur,
+ * mais par un contour tirete et une epingle systematique. */
+[data-signes="1"] .pays-forme.cible {
+    stroke: var(--epingle);
+    stroke-width: 2.5;
+    stroke-dasharray: 7 4;
+}
+
+/* Les epingles vivent hors du groupe zoome : leur taille est en pixels
+ * d'ecran, pas en unites de carte. */
+.epingle-point { fill: var(--epingle); }
+
+.epingle-halo {
+    fill: var(--cible-halo);
+    animation: battement 1.9s ease-out infinite;
+    transform-origin: center;
+}
+
+.epingle.juste .epingle-point { fill: var(--juste); }
+.epingle.faux .epingle-point { fill: var(--faux); }
+
+@keyframes battement {
+    0% { transform: scale(.55); opacity: .9; }
+    70% { transform: scale(1.5); opacity: 0; }
+    100% { transform: scale(1.5); opacity: 0; }
+}
+
+/* Ma carte : le planisphere prend la couleur de ce que le joueur sait. */
+.progression .pays-forme { transition: fill .5s ease; }
+.progression .pays-forme.acquis { fill: var(--acquis); }
+.progression .pays-forme.hesitant { fill: var(--hesitant); }
+.progression .pays-forme.inconnu { fill: var(--inconnu); }
+
+@media (prefers-reduced-motion: reduce) {
+    .vue { transition: opacity .2s linear; }
+    .epingle-halo { animation: none; opacity: .55; }
+    .pays-forme { transition: none; }
+}

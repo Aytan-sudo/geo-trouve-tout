@@ -1,0 +1,757 @@
+/* Tout ce qui n'est pas la carte : la page, la barre, les reponses, les
+ * dialogues. Les couleurs viennent de themes.css, sans exception. */
+
+* { box-sizing: border-box; }
+
+/* L'attribut `hidden` vaut `display: none` dans la feuille du navigateur, ou
+ * la moindre regle de classe le bat : `.verdict { display: flex }` suffit a
+ * faire reapparaitre un element cache. Le piege ne leve aucune erreur et ne se
+ * voit qu'a l'oeil — un bandeau vide sous la carte, une legende qui n'a rien a
+ * faire la. On tranche une fois pour toutes. */
+[hidden] { display: none !important; }
+
+html, body {
+    margin: 0;
+    height: 100%;
+    overscroll-behavior: none;
+}
+
+body {
+    background: var(--fond);
+    color: var(--texte);
+    font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
+.page {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    max-width: 620px;
+    margin: 0 auto;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* ---------- Barre du haut ---------- */
+
+.barre {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 10px;
+    flex: 0 0 auto;
+}
+
+.icone {
+    min-width: 44px;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--texte-doux);
+    font-size: 19px;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.icone:active { background: var(--bord); }
+.icone[aria-pressed="false"] { opacity: .38; }
+
+.titre {
+    flex: 1;
+    /* Sans cette largeur minimale nulle, un titre trop long pour la barre ne
+     * se laisse pas retrecir : il passe a la ligne, deborde de ses 44 px de
+     * haut et se fait couper. Le petit ecran est le cas dur. */
+    min-width: 0;
+    justify-content: flex-start;
+    text-align: left;
+    color: var(--texte);
+    padding: 0 4px;
+}
+
+.titre span { min-width: 0; }
+
+.titre h1,
+.titre p {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.titre h1 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -.01em;
+}
+
+.titre p {
+    margin: 0;
+    font-size: 11.5px;
+    color: var(--texte-doux);
+    text-transform: uppercase;
+    letter-spacing: .07em;
+}
+
+/* ---------- Compteurs ---------- */
+
+.compteurs {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 14px 8px;
+    flex: 0 0 auto;
+}
+
+.pastilles {
+    display: flex;
+    gap: 5px;
+    flex: 1;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.pastilles li {
+    flex: 1;
+    max-width: 26px;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--bord);
+    transition: background .25s ease;
+}
+
+.pastilles li.juste { background: var(--juste); }
+.pastilles li.faux { background: var(--faux); }
+.pastilles li.presque { background: var(--presque); }
+.pastilles li.courante { background: var(--accent); }
+
+.chiffres {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-variant-numeric: tabular-nums;
+}
+
+.chiffres strong { font-size: 19px; }
+.chiffres span { font-size: 13px; color: var(--texte-doux); }
+
+/* ---------- La scene ---------- */
+
+.scene {
+    position: relative;
+    /* La boite epouse le rapport de la carte, divise par ce qu'on accepte de
+     * rogner sur les bords vides du Pacifique — la meme valeur que
+     * COUVERTURE_MAX dans js/carte.js. Le resultat : pas de bande bleue autour
+     * de la carte, et pas de continent hors du cadre. Ce qui reste de hauteur
+     * profite aux boutons de reponse, qui en ont l'usage. */
+    aspect-ratio: calc(var(--ratio-carte, 2.25) / 1.55);
+    /* Elle ne grandit pas : sans quoi la boite s'etire et le rapport ci-dessus
+     * ne sert plus a rien. Ce qui reste de hauteur va a la zone de reponse. */
+    flex: 0 1 auto;
+    max-height: 62vh;
+    min-height: 130px;
+    margin: 0 10px;
+    border-radius: 16px;
+    overflow: hidden;
+    background: var(--mer);
+    box-shadow: var(--ombre);
+}
+
+.recentrer {
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--texte-doux);
+    font-size: 20px;
+    box-shadow: var(--ombre);
+    cursor: pointer;
+    touch-action: manipulation;
+    opacity: .92;
+}
+
+.indice {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    margin: 0;
+    padding: 5px 11px;
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--texte-doux);
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: .03em;
+    box-shadow: var(--ombre);
+}
+
+.legende {
+    position: absolute;
+    left: 8px;
+    bottom: 8px;
+    display: flex;
+    gap: 12px;
+    padding: 7px 12px;
+    border-radius: 12px;
+    background: var(--surface);
+    font-size: 12px;
+    color: var(--texte-doux);
+    box-shadow: var(--ombre);
+}
+
+.legende span { display: inline-flex; align-items: center; gap: 5px; }
+
+.pastille {
+    width: 11px;
+    height: 11px;
+    border-radius: 3px;
+    display: inline-block;
+}
+
+.pastille.acquis { background: var(--acquis); }
+.pastille.hesitant { background: var(--hesitant); }
+.pastille.inconnu { background: var(--inconnu); }
+
+/* ---------- La reponse ---------- */
+
+.reponse {
+    /* Elle recupere la hauteur que la carte ne prend pas, et centre ce qu'elle
+     * contient : sur un grand telephone, les boutons respirent au lieu de se
+     * tasser sous une bande vide. */
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 10px 4px;
+    min-height: 0;
+}
+
+.reponse > .enonce { margin: 0; }
+
+.enonce {
+    margin: 0 0 8px;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.enonce b { color: var(--cible); }
+
+.choix {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.choix button {
+    min-height: 52px;
+    padding: 8px 10px;
+    border: 1px solid var(--bord);
+    border-radius: 13px;
+    background: var(--surface);
+    color: var(--texte);
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.2;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: background .18s ease, border-color .18s ease;
+}
+
+.choix button:active { background: var(--bord); }
+.choix button.juste { background: var(--juste); border-color: var(--juste); color: var(--surface); }
+.choix button.faux { background: var(--faux); border-color: var(--faux); color: var(--surface); }
+.choix button:disabled { opacity: .55; }
+.choix button.juste:disabled, .choix button.faux:disabled { opacity: 1; }
+
+.consigne {
+    margin: 6px 0 12px;
+    text-align: center;
+    color: var(--texte-doux);
+    font-size: 14px;
+}
+
+/* ---------- La saisie ---------- */
+
+.ardoise {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 48px;
+    padding: 6px 6px 6px 14px;
+    border: 1px solid var(--bord);
+    border-radius: 13px;
+    background: var(--surface);
+}
+
+.ardoise output {
+    flex: 1;
+    font-size: 19px;
+    font-weight: 600;
+    letter-spacing: .01em;
+    min-height: 24px;
+    word-break: break-word;
+}
+
+.ardoise output:empty::after {
+    content: attr(data-invite);
+    color: var(--texte-doux);
+    font-weight: 400;
+}
+
+.effacer {
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--bord);
+    color: var(--texte);
+    font-size: 17px;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.suggestions {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    margin: 8px 0 0;
+    padding: 0 0 2px;
+    list-style: none;
+    scrollbar-width: none;
+}
+
+.suggestions::-webkit-scrollbar { display: none; }
+
+.suggestions button {
+    min-height: 40px;
+    padding: 6px 13px;
+    white-space: nowrap;
+    border: 1px solid var(--bord);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--texte);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.clavier {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.rangee {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+}
+
+.touche {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 46px;
+    border: 0;
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--texte);
+    font-size: 17px;
+    font-weight: 600;
+    cursor: pointer;
+    touch-action: manipulation;
+    box-shadow: var(--ombre);
+}
+
+.touche:active { background: var(--bord); }
+.touche.large { flex: 2.4 1 0; font-size: 14px; }
+.touche.valider { flex: 2.4 1 0; background: var(--accent); color: var(--surface); font-size: 14px; }
+
+/* ---------- Verdict ---------- */
+
+.verdict {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 6px 10px;
+    padding: 10px 12px;
+    border-radius: 13px;
+    background: var(--surface);
+    box-shadow: var(--ombre);
+}
+
+.verdict button {
+    min-height: 44px;
+    padding: 8px 16px;
+    border: 0;
+    border-radius: 11px;
+    background: var(--accent);
+    color: var(--surface);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.verdict strong { font-size: 15px; }
+.verdict small { flex: 1; color: var(--texte-doux); font-size: 12.5px; line-height: 1.3; }
+.verdict.juste strong { color: var(--juste); }
+.verdict.faux strong { color: var(--faux); }
+.verdict.presque strong { color: var(--presque); }
+
+.a-revoir {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-content: flex-start;
+    gap: 6px;
+    margin: 0;
+    padding: 0 2px;
+    list-style: none;
+    overflow-y: auto;
+    max-height: 100%;
+    -webkit-overflow-scrolling: touch;
+}
+
+.a-revoir button {
+    min-height: 40px;
+    padding: 7px 13px;
+    border: 1px solid var(--bord);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--texte);
+    font: inherit;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+/* Sur « Ma carte », les compteurs d'une manche qui n'a plus cours n'ont rien
+ * a dire : l'ecran ne parle que de ce qu'on sait. */
+body[data-ecran="progression"] .compteurs { display: none; }
+body[data-ecran="progression"] .enonce { font-size: 14.5px; color: var(--texte-doux); }
+body[data-ecran="progression"] .reponse { justify-content: flex-start; }
+
+/* ---------- Navigation ---------- */
+
+.navigation {
+    display: flex;
+    gap: 6px;
+    padding: 6px 10px 10px;
+    flex: 0 0 auto;
+}
+
+.navigation button {
+    flex: 1;
+    min-height: 52px;
+    padding: 6px 4px;
+    border: 1px solid var(--bord);
+    border-radius: 13px;
+    background: transparent;
+    color: var(--texte);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.navigation button span {
+    font-size: 10.5px;
+    color: var(--texte-doux);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+}
+
+.navigation button strong { font-size: 13.5px; }
+.navigation button[aria-current="true"] { background: var(--surface); border-color: var(--accent); }
+
+.annonce {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+}
+
+/* ---------- Dialogues ---------- */
+
+dialog {
+    border: 0;
+    padding: 0;
+    max-width: 560px;
+    width: calc(100% - 24px);
+    max-height: 88vh;
+    background: transparent;
+    color: var(--texte);
+    overflow: visible;
+}
+
+dialog::backdrop { background: var(--voile); }
+
+.feuille {
+    background: var(--surface);
+    border-radius: 18px;
+    padding: 18px;
+    max-height: 88vh;
+    overflow-y: auto;
+    box-shadow: var(--ombre-carte);
+    -webkit-overflow-scrolling: touch;
+}
+
+.feuille-entete {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.feuille-entete div { flex: 1; }
+.feuille-entete h2 { margin: 0; font-size: 20px; }
+
+.legende-feuille {
+    margin: 0;
+    font-size: 11px;
+    color: var(--texte-doux);
+    text-transform: uppercase;
+    letter-spacing: .09em;
+}
+
+.fermer {
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--texte-doux);
+    font-size: 24px;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.feuille h3 {
+    margin: 18px 0 8px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--texte-doux);
+}
+
+.feuille p { margin: 0 0 10px; font-size: 14.5px; }
+.feuille kbd {
+    display: inline-block;
+    padding: 1px 6px;
+    margin: 0 1px;
+    border: 1px solid var(--bord);
+    border-radius: 5px;
+    background: var(--fond);
+    font: inherit;
+    font-size: 12.5px;
+}
+
+.regles { display: flex; flex-direction: column; gap: 10px; margin-bottom: 6px; }
+.regles article { display: flex; gap: 11px; align-items: flex-start; }
+.regles b {
+    flex: 0 0 30px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9px;
+    background: var(--fond);
+    color: var(--texte-doux);
+    font-size: 12px;
+}
+.regles strong { display: block; font-size: 14.5px; }
+.regles p { margin: 1px 0 0; font-size: 13.5px; color: var(--texte-doux); }
+
+.reglage {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.reglage label { font-size: 14.5px; font-weight: 600; }
+
+/* WebKit ignore min-height sur un select natif : sans hauteur ferme, iOS le
+ * rend a 22 px la ou Chrome parait correct. */
+select {
+    height: 44px;
+    min-width: 168px;
+    padding: 0 10px;
+    border: 1px solid var(--bord);
+    border-radius: 11px;
+    background: var(--fond);
+    color: var(--texte);
+    font: inherit;
+    font-size: 14.5px;
+}
+
+.explication {
+    margin: -4px 0 12px;
+    font-size: 12.5px;
+    color: var(--texte-doux);
+}
+
+.choix-theme { display: flex; flex-wrap: wrap; gap: 7px; }
+
+.choix-theme button {
+    min-height: 44px;
+    padding: 8px 14px;
+    border: 1px solid var(--bord);
+    border-radius: 11px;
+    background: var(--fond);
+    color: var(--texte);
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.choix-theme button[aria-pressed="true"] { border-color: var(--accent); background: var(--surface); font-weight: 700; }
+
+.option {
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+    min-height: 44px;
+    padding: 7px 0;
+    cursor: pointer;
+}
+
+.option input { width: 22px; height: 22px; margin: 2px 0 0; flex: 0 0 auto; accent-color: var(--accent); }
+.option strong { display: block; font-size: 14.5px; }
+.option small { display: block; color: var(--texte-doux); font-size: 12.5px; line-height: 1.35; }
+
+.version {
+    margin: 18px 0 0;
+    text-align: center;
+    font-size: 12px;
+    color: var(--texte-doux);
+}
+
+.feuille-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+}
+
+.feuille-actions button {
+    flex: 1;
+    min-height: 48px;
+    min-width: 110px;
+    padding: 10px 14px;
+    border: 1px solid var(--bord);
+    border-radius: 13px;
+    background: var(--fond);
+    color: var(--texte);
+    font: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.feuille-actions .primaire { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.feuille-actions .danger { background: transparent; border-color: var(--danger); color: var(--danger); }
+
+.series { display: flex; gap: 8px; }
+.series div {
+    flex: 1;
+    padding: 11px;
+    border-radius: 13px;
+    background: var(--fond);
+    text-align: center;
+}
+.series span { display: block; font-size: 11px; color: var(--texte-doux); text-transform: uppercase; letter-spacing: .05em; }
+.series strong { font-size: 24px; font-variant-numeric: tabular-nums; }
+
+.palmares, .historique, .rates {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.palmares li, .historique li {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: 11px;
+    background: var(--fond);
+    font-size: 13.5px;
+}
+
+.palmares b, .historique b { font-variant-numeric: tabular-nums; }
+
+.rates { flex-direction: row; flex-wrap: wrap; gap: 6px; }
+.rates li {
+    padding: 6px 11px;
+    border-radius: 999px;
+    background: var(--fond);
+    font-size: 13.5px;
+}
+
+.resultat { display: flex; gap: 8px; margin: 0 0 14px; }
+.resultat div { flex: 1; padding: 12px 8px; border-radius: 13px; background: var(--fond); text-align: center; }
+.resultat dt { font-size: 11px; color: var(--texte-doux); text-transform: uppercase; letter-spacing: .05em; }
+.resultat dd { margin: 2px 0 0; font-size: 25px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.verdict-final { padding: 12px 14px; border-radius: 13px; background: var(--fond); }
+.verdict-final strong { display: block; font-size: 15.5px; }
+.verdict-final small { color: var(--texte-doux); font-size: 13px; }
+
+/* ---------- Petits ecrans ---------- */
+
+/* Attention : c'est ici que la regle des 44 px se defait le plus volontiers.
+ * Les hauteurs de touche et de bouton restent donc au-dessus du seuil, seules
+ * les marges se resserrent. */
+/* Le petit ecran : 320 px de large, ou tout se dispute la place. Les hauteurs
+ * de cible ne bougent pas — seules les tailles de texte se resserrent. */
+@media (max-width: 370px) {
+    .barre { padding: 6px 6px; gap: 0; }
+    .titre { padding: 0 2px; }
+    .titre h1 { font-size: 14px; letter-spacing: -.02em; }
+    .titre p { font-size: 9.5px; letter-spacing: .02em; }
+    /* La taille du texte se resserre, jamais celle de la cible : c'est ici
+     * que la regle des 44 px se defait le plus volontiers, et c'est ici
+     * qu'elle compte le plus. */
+    .icone { font-size: 17px; }
+    .navigation button span { font-size: 9.5px; letter-spacing: .03em; }
+    .navigation button strong { font-size: 12.5px; }
+    .choix button { font-size: 14px; }
+}
+
+@media (max-height: 700px) {
+    .scene { min-height: 120px; }
+    .choix button { min-height: 48px; font-size: 14px; }
+    .touche { height: 44px; font-size: 16px; }
+    .navigation button { min-height: 46px; }
+    .reponse { padding: 8px 10px 2px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * { animation-duration: .01ms !important; transition-duration: .12s !important; }
+}
