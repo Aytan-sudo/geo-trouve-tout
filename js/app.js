@@ -4,26 +4,26 @@
 // le fil de la partie en cours. Aucune regle du jeu n'est ecrite ici.
 
 import { creerHasard, graineDepuisTexte } from './hasard.js';
-import { charger, CATALOGUE, nomDAtlas } from './atlas.js';
+import { charger, CATALOGUE, nomDAtlas, familleDe, cartesDe } from './atlas.js';
 import { creerCarte } from './carte.js';
 import { creerRendu, avecArticle } from './rendu.js';
 import { creerPartie, restaurer } from './partie.js';
 import { composerManche, sacDe, fabriquer } from './questions.js';
 import { creerMemoire, jourDe } from './memoire.js';
 import { verifier, indexer, normaliser } from './reponse.js';
-import { NIVEAUX, CHRONOS, RYTHMES, DEFAUTS, signature } from './variantes.js';
+import { NIVEAUX, CHRONOS, RYTHMES, DEFAUTS, signature, sensDe, sensAlternes, texte as motsDe } from './variantes.js';
 import { preferences, partie as partieRangee, souvenirs, stats, toutEffacer } from './stockage.js';
 import { appliquer as appliquerTheme, themeSuivant } from './themes.js';
 import { son, vibrer, preparerSon, activerSon } from './son.js';
 import { gestesCarte, creerClavier, raccourcis, interdireDoubleTap } from './entree.js';
 import * as ui from './ui.js';
 import {
-    dateISO, lireAdresse, graineDuJour, CONFIG_DU_JOUR,
+    dateISO, lireAdresse, graineDuJour, CONFIG_DU_JOUR, configDuJour,
     texteDePartage, lienDuJour, lienLibre, duree as formaterDuree
 } from './defi.js';
 
 const $ = id => document.getElementById(id);
-const VERSION = '1.0.1';
+const VERSION = '1.1.0';
 
 const etat = {
     reglages: preferences.lire(),
@@ -68,21 +68,34 @@ function juger(question, donnee) {
             ? { verdict: 'juste' }
             : { verdict: 'faux', correction: entite.capitale };
     }
+    // « 1 » vaut « 01 » : le zero de tete est une convention d'ecriture, pas une
+    // connaissance. « 2A » et « 2B », eux, comptent a la lettre.
+    if (question.sens === 'numero') {
+        const propre = v => normaliser(v).replace(/^0+(?=\w)/, '');
+        return propre(donnee) === propre(entite.numero)
+            ? { verdict: 'juste' }
+            : { verdict: 'faux', correction: entite.numero };
+    }
     return verifier(donnee, entite, { index: etat.index, pieges: etat.atlas.pieges ?? [] });
 }
 
 const reponseAttendue = (question, entite) =>
-    question.sens === 'capitale' ? entite.capitale : entite.nom;
+    question.sens === 'capitale' ? entite.capitale
+        : question.sens === 'numero' ? entite.numero
+            : entite.nom;
 
 function nouvellePartie({ mode = 'libre', jour = null, graine = null, cibles = null, reprise = null } = {}) {
     arreterMinuterie();
     etat.mode = mode;
     etat.jour = jour ?? dateISO();
     // La configuration dit la carte reellement en jeu, pas celle qu'un reglage
-    // souhaite : c'est elle qui signe le palmares.
+    // souhaite : c'est elle qui signe le palmares. Et un sens que la carte ne
+    // sait pas poser — le numero d'un pays — retombe sur « nommer » : un
+    // reglage garde d'une autre carte ne doit pas vider le sac.
     const config = mode === 'jour'
-        ? { ...CONFIG_DU_JOUR, atlas: etat.atlas.id }
+        ? { ...configDuJour(etat.atlas.id) }
         : { ...configCourante(), atlas: etat.atlas.id };
+    if (!sensDe(etat.atlas).includes(config.sens)) config.sens = DEFAUTS.sens;
     etat.graine = graine ?? graineDepuisTexte(`libre:${Date.now()}`);
 
     const hasard = creerHasard(etat.graine);
@@ -94,9 +107,10 @@ function nouvellePartie({ mode = 'libre', jour = null, graine = null, cibles = n
     // En manche, tout le parcours est tire d'un coup : c'est ce qui rend le
     // defi du jour identique pour tout le monde. En marathon, la question
     // suivante se fabrique a la demande — la partie n'a pas de fin connue.
+    const motsEtSens = { mots: etat.atlas.mots, alternes: sensAlternes(etat.atlas) };
     let file = [];
     if (cibles) {
-        file = cibles.map(id => fabriquer(etat.atlas.parId.get(id), etat.sac, config, hasard));
+        file = cibles.map(id => fabriquer(etat.atlas.parId.get(id), etat.sac, config, hasard, motsEtSens));
     } else if (RYTHMES[config.rythme].questions !== Infinity) {
         file = composerManche(etat.atlas, config, hasard, { nombre: RYTHMES[config.rythme].questions, poids });
     }
@@ -113,7 +127,7 @@ function nouvellePartie({ mode = 'libre', jour = null, graine = null, cibles = n
             ? composerManche({ ...etat.atlas, entites: restants }, config, hasard, { nombre: 1, poids }).map(q => etat.atlas.parId.get(q.cible))
             : [hasard.choisir(restants)];
         dejaVues.add(cible.id);
-        return fabriquer(cible, etat.sac, config, hasard);
+        return fabriquer(cible, etat.sac, config, hasard, motsEtSens);
     };
 
     etat.partie = reprise
@@ -122,7 +136,7 @@ function nouvellePartie({ mode = 'libre', jour = null, graine = null, cibles = n
     if (!reprise) etat.partie.commencer();
     etat.attenteSuivant = false;
     quitterProgression();
-    rendu.mode(mode === 'jour' ? `Défi du ${etat.jour.split('-').reverse().join('/')}` : nomDAtlas(config.atlas));
+    rendu.mode(titreDuMode(mode, config.atlas));
     marquerNavigation();
     afficherQuestion();
     demarrerMinuterie();
@@ -139,10 +153,20 @@ function nouvellePartie({ mode = 'libre', jour = null, graine = null, cibles = n
 async function lancer(options = {}) {
     const voulu = options.cibles
         ? etat.atlas.id
-        : (options.mode === 'jour' ? CONFIG_DU_JOUR.atlas : configCourante().atlas);
+        : (options.mode === 'jour' ? carteDuJour() : configCourante().atlas);
     if (voulu !== etat.atlas?.id) await chargerAtlas(voulu);
     nouvellePartie(options);
 }
+
+// Ce que la barre du haut annonce. Le defi du monde garde sa date entiere ;
+// pour les autres cartes, c'est la carte qui distingue le defi du jour — il y
+// en a un par categorie, et jamais un qui les melange.
+const titreDuMode = (mode, atlas) => {
+    if (mode !== 'jour') return nomDAtlas(atlas);
+    return atlas === CONFIG_DU_JOUR.atlas
+        ? `Défi du ${etat.jour.split('-').reverse().join('/')}`
+        : `Défi du jour · ${nomDAtlas(atlas)}`;
+};
 
 function afficherQuestion() {
     const partie = etat.partie;
@@ -151,10 +175,12 @@ function afficherQuestion() {
 
     const entite = etat.atlas.parId.get(question.cible);
     const saisieActive = question.sens !== 'localiser' && question.propositions.length === 0;
+    if (saisieActive) clavier(question.sens === 'numero' ? 'chiffres' : 'lettres');
     rendu.question(question, entite, {
         saisieActive,
-        aideSaisie: etat.reglages.aideSaisie !== false && etat.reglages.niveau !== 'expert',
-        entites: etat.sac
+        aideSaisie: aideDeSaisie(question),
+        entites: etat.sac,
+        invite: inviteDe(question)
     });
     rendu.pastilles(partie.etat.resultats, RYTHMES[partie.etat.config.rythme].questions, partie.etat.resultats.length);
     rendu.compteurs({
@@ -312,7 +338,11 @@ function montrerProgression() {
     rendu.verdict(null);
     rendu.legende(true);
     const compte = etat.memoire.resume(etat.atlas.entites);
-    rendu.elements.enonce.textContent = `${compte.acquis} pays acquis, ${compte.hesitant} en cours, ${compte.inconnu} jamais vus.`;
+    // « 18 régions acquises », « 197 pays acquis » : l'accord voyage avec les
+    // mots de la carte, comme le reste des enonces.
+    rendu.elements.enonce.textContent = motsDe(
+        `${compte.acquis} {entites} {acquis}, ${compte.hesitant} en cours, ${compte.inconnu} {jamaisVus}.`,
+        etat.atlas.mots);
     rendu.elements.enonce.hidden = false;
 
     // Ce qu'il reste a travailler, du moins su au mieux su. Toucher un nom
@@ -355,6 +385,21 @@ function ranger() {
     });
 }
 
+// La carte du defi du jour se choisit comme le reste, et se retient. Elle est
+// separee de la carte des parties libres : on peut travailler ses departements
+// en libre et garder le defi du monde.
+const carteDuJour = () => {
+    const voulue = etat.reglages.carteDuJour ?? CONFIG_DU_JOUR.atlas;
+    return CATALOGUE.some(c => c.id === voulue) ? voulue : CONFIG_DU_JOUR.atlas;
+};
+
+// L'aide a la saisie propose des noms : elle n'a rien a dire d'un numero, et
+// l'Expert s'en passe par definition.
+const aideDeSaisie = question =>
+    etat.reglages.aideSaisie !== false
+    && etat.reglages.niveau !== 'expert'
+    && question.sens !== 'numero';
+
 const configCourante = () => ({
     atlas: etat.reglages.atlas ?? DEFAUTS.atlas,
     niveau: etat.reglages.niveau ?? DEFAUTS.niveau,
@@ -365,13 +410,37 @@ const configCourante = () => ({
 
 // ------------------------------------------------------------- demarrage
 
+// Ce que le menu sait dire d'une carte sans la jouer : combien d'entites elle
+// porte, quels sens elle peut poser, dans quels mots. Le fichier est charge une
+// fois et garde — c'est aussi ce qui rend « Commencer » instantane.
+const apercus = new Map();
+
+const retenirApercu = atlas => {
+    apercus.set(atlas.id, {
+        total: atlas.entites.length,
+        sens: sensDe(atlas),
+        mots: atlas.mots,
+        sac: config => sacDe(atlas, config).length
+    });
+    return apercus.get(atlas.id);
+};
+
+async function apercuDe(id) {
+    return apercus.get(id) ?? retenirApercu(await charger(id));
+}
+
 async function chargerAtlas(id) {
     etat.atlas = await charger(id);
+    // Une carte ouverte est une carte connue : le palmares et les menus
+    // pourront la nommer dans ses propres mots sans la relire.
+    retenirApercu(etat.atlas);
     etat.index = indexer(etat.atlas.entites);
-    // La scene prend le rapport de la carte, corrige du peu qu'on accepte de
-    // rogner (css/interface.css). Sans cela un planisphere flotte au milieu
-    // d'un grand rectangle vide sur un telephone tenu debout.
+    // La scene prend le rapport de la carte, corrige de ce que cette carte-la
+    // accepte de perdre sur ses bords. Sans cela un planisphere flotte au milieu
+    // d'un grand rectangle vide sur un telephone tenu debout — et la colonne de
+    // cartouches de la France se ferait rogner.
     document.documentElement.style.setProperty('--ratio-carte', String(etat.atlas.ratio));
+    document.documentElement.style.setProperty('--couverture', String(etat.atlas.couverture));
     etat.carte = creerCarte($('carte'), etat.atlas);
     gestesCarte(etat.carte.svg, etat.carte, {
         surAppui: (x, y) => {
@@ -387,7 +456,10 @@ function annoncerPays(id) {
     const entite = etat.atlas.parId.get(id);
     if (!entite) return;
     const niveau = { acquis: 'acquis', hesitant: 'à revoir', inconnu: 'jamais vu' }[etat.memoire.niveauDe(id)];
-    rendu.elements.enonce.textContent = `${entite.nom}${entite.capitale ? ` · ${entite.capitale}` : ''} — ${niveau}`;
+    rendu.elements.enonce.textContent = [
+        entite.numero ? `${entite.numero} · ${entite.nom}` : entite.nom,
+        entite.capitale, `— ${niveau}`
+    ].filter(Boolean).join(' · ').replace(' · —', ' —');
     etat.carte.cadrerSur(id);
 }
 
@@ -406,7 +478,10 @@ async function demarrer() {
     $('version').textContent = `Géo Trouve-Tout ${VERSION}`;
     ui.brancherDialogues();
 
-    const adresse = lireAdresse(location.search);
+    const adresse = lireAdresse(location.search, CATALOGUE.map(c => c.id));
+    // Un lien de defi impose sa carte, et la retient : rouvrir le jeu ensuite
+    // repropose le defi qu'on vient de jouer.
+    if (adresse?.mode === 'jour') etat.reglages.carteDuJour = adresse.config.atlas;
     const atlasVoulu = adresse?.config?.atlas ?? etat.reglages.atlas ?? DEFAUTS.atlas;
     await chargerAtlas(CATALOGUE.some(a => a.id === atlasVoulu) ? atlasVoulu : DEFAUTS.atlas);
 
@@ -432,7 +507,7 @@ async function demarrer() {
             });
         } else {
             partieRangee.effacer();
-            await lancer({ mode: 'jour', jour: dateISO(), graine: graineDuJour(dateISO()) });
+            await lancer({ mode: 'jour', jour: dateISO(), graine: graineDuJour(dateISO(), carteDuJour()) });
         }
     }
 }
@@ -450,30 +525,59 @@ function brancherBoutons() {
         // La carte, elle, ne change pas sous la partie en cours : elle est
         // chargee au depart de la suivante. Changer de carte en plein jeu
         // laissait le planisphere d'Europe sous une question sur la Colombie.
-        const vue = { ...etat.reglages, ...configCourante() };
+        // Son fichier, en revanche, est lu tout de suite : le menu a besoin de
+        // savoir combien elle porte d'entites et quels sens elle sait poser.
+        peindreMenus();
+        if (valeurs.atlas || valeurs.carteDuJour) preparerCartes();
+    };
+
+    const vueDesReglages = () => ({
+        ...etat.reglages, ...configCourante(),
+        carteDuJour: carteDuJour(),
+        mots: apercus.get(configCourante().atlas)?.mots
+    });
+
+    const peindreMenus = () => {
+        const vue = vueDesReglages();
         options.peindre(vue);
         menuPartie.peindre(vue);
     };
 
-    const vueDesReglages = () => ({ ...etat.reglages, ...configCourante() });
+    // Les deux cartes en vue — celle des parties libres, celle du defi — sont
+    // lues des que le menu s'ouvre, puis le menu se repeint avec leurs vrais
+    // decomptes.
+    const preparerCartes = async () => {
+        const avant = apercus.size;
+        await Promise.all([configCourante().atlas, carteDuJour()].map(id => apercuDe(id).catch(() => null)));
+        if (apercus.size !== avant) peindreMenus();
+    };
 
     const options = ui.creerOptions({
         surChangement: appliquerReglages,
-        surPartie: () => menuPartie.montrer(vueDesReglages(), etat.mode === 'jour' ? 'jour' : 'libre')
+        surPartie: () => ouvrirMenu(etat.mode === 'jour' ? 'jour' : 'libre')
     });
 
     const menuPartie = ui.creerMenuPartie({
         surChangement: appliquerReglages,
+        apercu: id => apercus.get(id),
         surCommencer: mode => mode === 'jour'
-            ? lancer({ mode: 'jour', jour: dateISO(), graine: graineDuJour(dateISO()) })
+            ? lancer({ mode: 'jour', jour: dateISO(), graine: graineDuJour(dateISO(), carteDuJour()) })
             : lancer({ mode: 'libre' })
     });
+
+    const ouvrirMenu = modeVoulu => {
+        menuPartie.montrer(vueDesReglages(), modeVoulu);
+        preparerCartes();
+    };
 
     $('options-ouvrir').addEventListener('click', () => options.montrer(vueDesReglages()));
     $('aide-ouvrir').addEventListener('click', () => ui.ouvrir($('dialogue-aide')));
     $('stats-ouvrir').addEventListener('click', () => {
         const compte = etat.memoire.resume(etat.atlas.entites);
-        ui.montrerStats({ stats: stats.lire(), acquis: compte.acquis, total: compte.total });
+        ui.montrerStats({
+            stats: stats.lire(), acquis: compte.acquis, total: compte.total,
+            motsDe: id => apercus.get(id)?.mots
+        });
     });
     $('theme-basculer').addEventListener('click',
         () => appliquerReglages({ theme: themeSuivant(etat.reglages.theme).id }));
@@ -482,10 +586,10 @@ function brancherBoutons() {
 
     $('action-recentrer').addEventListener('click', () => etat.carte.recentrer());
     $('verdict-suivant').addEventListener('click', suite);
-    $('nav-jour').addEventListener('click', () => lancer({ mode: 'jour', jour: dateISO(), graine: graineDuJour(dateISO()) }));
+    $('nav-jour').addEventListener('click', () => lancer({ mode: 'jour', jour: dateISO(), graine: graineDuJour(dateISO(), carteDuJour()) }));
     // On ne lance plus une partie libre en aveugle : le menu montre d'abord ce
     // qu'elle sera, et c'est lui qui la commence.
-    $('nav-libre').addEventListener('click', () => menuPartie.montrer(vueDesReglages(), 'libre'));
+    $('nav-libre').addEventListener('click', () => ouvrirMenu('libre'));
     $('nav-progression').addEventListener('click', montrerProgression);
 
     $('fin-rejouer').addEventListener('click', () => {
@@ -499,11 +603,17 @@ function brancherBoutons() {
     });
     $('fin-partager').addEventListener('click', () => {
         const bilan = etat.partie.bilan();
+        const config = etat.partie.etat.config;
         const texte = texteDePartage(
             { ...bilan, resultats: etat.partie.etat.resultats },
             {
                 jour: etat.mode === 'jour' ? etat.jour : dateISO(),
-                lien: etat.mode === 'jour' ? lienDuJour(etat.jour) : lienLibre(String(etat.graine), etat.partie.etat.config)
+                titre: config.atlas === CONFIG_DU_JOUR.atlas
+                    ? 'Géo Trouve-Tout'
+                    : `Géo Trouve-Tout · ${nomDAtlas(config.atlas)}`,
+                lien: etat.mode === 'jour'
+                    ? lienDuJour(etat.jour, config.atlas)
+                    : lienLibre(String(etat.graine), config)
             }
         );
         ui.partager(texte, message => { rendu.elements.annonce.textContent = message; });
@@ -514,11 +624,7 @@ function brancherBoutons() {
         $('dialogue-stats').close();
     });
 
-    creerClavier($('clavier'), {
-        surLettre: lettre => saisir(rendu.texteSaisi + lettre),
-        surEffacer: () => saisir(rendu.texteSaisi.slice(0, -1)),
-        surValider: () => rendu.texteSaisi && repondre(rendu.texteSaisi)
-    });
+    clavier('lettres');
 
     raccourcis({
         choisir: rang => {
@@ -550,10 +656,28 @@ function brancherBoutons() {
     document.addEventListener('pointerdown', preparer, { once: true });
 }
 
+// Le clavier maison change de disposition avec la question : les lettres pour
+// un nom, un pave de chiffres pour un numero de departement — avec A et B, sans
+// quoi la Corse-du-Sud serait intapable.
+let dispositionClavier = null;
+function clavier(disposition) {
+    if (disposition === dispositionClavier) return;
+    dispositionClavier = disposition;
+    creerClavier($('clavier'), {
+        surLettre: lettre => saisir(rendu.texteSaisi + lettre),
+        surEffacer: () => saisir(rendu.texteSaisi.slice(0, -1)),
+        surValider: () => rendu.texteSaisi && repondre(rendu.texteSaisi)
+    }, disposition);
+}
+
+const inviteDe = question => question.sens === 'numero' ? 'Tapez le numéro…' : 'Écrivez le nom…';
+
 function saisir(texte) {
+    const question = etat.partie?.etat.question ?? {};
     rendu.saisie(texte.slice(0, 40), {
-        aideSaisie: etat.reglages.aideSaisie !== false && etat.reglages.niveau !== 'expert',
-        entites: etat.sac
+        aideSaisie: aideDeSaisie(question),
+        entites: etat.sac,
+        invite: inviteDe(question)
     });
     if (etat.reglages.sons !== false) son.touche();
 }

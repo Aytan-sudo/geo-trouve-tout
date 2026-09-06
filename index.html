@@ -117,13 +117,20 @@
             <div><p class="legende-feuille">Le tour du monde</p><h2>Trouver les pays</h2></div>
             <button type="button" class="fermer" data-fermer aria-label="Fermer">×</button>
         </div>
-        <p>Un pays s’allume sur la carte. Vous le nommez — en choisissant parmi quatre propositions, ou en l’écrivant vous-même si vous jouez en Expert.</p>
+        <p>Un pays s’allume sur la carte. Vous le nommez — en choisissant parmi quatre propositions, ou en l’écrivant vous-même si vous jouez en Expert. Ce qui vaut pour un pays vaut pour un département ou une région : le jeu change de carte, jamais de règle.</p>
         <div class="regles">
             <article><b>01</b><div><strong>Regardez la forme</strong><p>La carte se rapproche du pays cherché. Pincez pour zoomer davantage, glissez pour vous promener, et touchez la mire pour revoir le monde entier.</p></div></article>
             <article><b>02</b><div><strong>Répondez</strong><p>Dix questions par manche. Une réponse juste allume une pastille verte en haut de l’écran.</p></div></article>
             <article><b>03</b><div><strong>Le jeu vous suit</strong><p>Chaque pays que vous ratez revient plus vite dans les manches suivantes. Ceux que vous savez s’espacent.</p></div></article>
-            <article><b>04</b><div><strong>Votre carte se colorie</strong><p>Dans « Ma carte », le planisphère prend la couleur de ce que vous savez. Ce qui reste pâle est ce qu’il reste à apprendre.</p></div></article>
+            <article><b>04</b><div><strong>Votre carte se colorie</strong><p>Dans « Ma carte », la carte prend la couleur de ce que vous savez. Ce qui reste pâle est ce qu’il reste à apprendre.</p></div></article>
         </div>
+
+        <h3>Les cartes</h3>
+        <p>Deux sujets pour l’instant. <strong>Le monde</strong> — les 197 pays, ou les 45 pays d’Europe. <strong>La France</strong> — les 101 départements avec leurs préfectures et leurs numéros, les 18 régions avec leurs chefs-lieux. Les cinq départements et régions d’outre-mer ont chacun leur cartouche, à sa propre échelle, comme sur une carte d’atlas.</p>
+        <p>La carte se choisit dans <strong>Nouvelle partie</strong>, en bas de l’écran. <strong>Une manche ne mélange jamais deux cartes</strong> : on ne vous demandera pas la Colombie et la Corrèze dans la même série.</p>
+
+        <h3>Le défi du jour</h3>
+        <p>Dix questions tirées de la date, les mêmes pour tout le monde, sans serveur. Chaque carte a le sien — celui du monde, celui des départements — et l’on choisit lequel jouer dans le même menu. Le lien de partage porte la date et la carte, jamais les réponses.</p>
 
         <h3>Les niveaux</h3>
         <p>Quatre sacs de tirage, du plus connu au plus pointu. En <strong>Découverte</strong>, quarante pays et le continent en indice. En <strong>Écolier</strong>, une centaine, et les propositions viennent du même continent. En <strong>Voyageur</strong>, tous les pays, et les voisins servent de pièges. En <strong>Expert</strong>, le nom s’écrit.</p>
@@ -131,11 +138,11 @@
         <h3>Écrire un nom</h3>
         <p>Les accents, les traits d’union et les majuscules ne comptent pas : <i>etats unis</i> vaut <i>États-Unis</i>. Une lettre de travers passe aussi, et l’orthographe juste s’affiche. Mais écrire le nom d’un <em>autre</em> pays reste une erreur, même s’il n’en diffère que d’une lettre — l’Iran n’est pas l’Irak.</p>
 
-        <h3>Les trois sens</h3>
-        <p><strong>Nommer</strong> le pays allumé, le <strong>trouver</strong> sur la carte muette à partir de son nom, ou donner sa <strong>capitale</strong>. Réglable au départ d’une partie libre, et mélangeable.</p>
+        <h3>Les sens</h3>
+        <p><strong>Nommer</strong> ce qui est allumé, le <strong>trouver</strong> sur la carte muette à partir de son nom, ou donner sa <strong>capitale</strong> — sa préfecture pour un département, son chef-lieu pour une région. Les départements ajoutent leur <strong>numéro</strong> : 35, c’est l’Ille-et-Vilaine. Chaque carte n’offre que les questions dont elle a les réponses. Réglable au départ d’une partie libre, et mélangeable.</p>
 
         <h3>Au clavier</h3>
-        <p><kbd>1</kbd>–<kbd>4</kbd> choisissent une proposition, <kbd>Entrée</kbd> valide, <kbd>N</kbd> lance une nouvelle partie libre, <kbd>R</kbd> relance la même, <kbd>T</kbd> change de thème, <kbd>?</kbd> ouvre cette notice, <kbd>Échap</kbd> ferme.</p>
+        <p><kbd>1</kbd>–<kbd>4</kbd> choisissent une proposition, les lettres et les chiffres écrivent la réponse, <kbd>Entrée</kbd> valide, <kbd>N</kbd> lance une nouvelle partie libre, <kbd>R</kbd> relance la même, <kbd>T</kbd> change de thème, <kbd>?</kbd> ouvre cette notice, <kbd>Échap</kbd> ferme.</p>
         <div class="feuille-actions"><button type="button" class="primaire" data-fermer>Commencer</button></div>
     </div>
 </dialog>
@@ -158,7 +165,7 @@
         </button>
 
         <h3>Thème</h3>
-        <div class="choix-theme" id="choix-theme" role="group" aria-label="Thème"></div>
+        <div class="chips" id="choix-theme" role="group" aria-label="Thème"></div>
 
         <h3>Sensations</h3>
         <label class="option"><input type="checkbox" id="option-sons"><span><strong>Sons</strong><small>Une note montante pour une réponse juste, une note basse sinon.</small></span></label>
@@ -167,7 +174,7 @@
         <label class="option"><input type="checkbox" id="option-aide-saisie"><span><strong>Aide à la saisie</strong><small>Propose les noms qui commencent par ce que vous tapez. Sans effet en Expert.</small></span></label>
         <label class="option"><input type="checkbox" id="option-memoire"><span><strong>Révision guidée</strong><small>Les pays ratés reviennent plus souvent que les autres. Décochez pour un tirage purement au hasard.</small></span></label>
 
-        <p class="version" id="version">Géo Trouve-Tout 1.0.1</p>
+        <p class="version" id="version">Géo Trouve-Tout 1.1.0</p>
         <div class="feuille-actions">
             <button type="button" class="primaire" data-fermer>Fermer</button>
         </div>
@@ -187,7 +194,7 @@
             <div class="modes" id="choix-mode" role="group" aria-label="Type de partie">
                 <button type="button" id="mode-jour" aria-pressed="false">
                     <strong>Défi du jour</strong>
-                    <small>Dix pays, les mêmes pour tout le monde aujourd’hui.</small>
+                    <small id="resume-jour">Dix pays, les mêmes pour tout le monde aujourd’hui.</small>
                 </button>
                 <button type="button" id="mode-libre" aria-pressed="true">
                     <strong>Partie libre</strong>
@@ -195,12 +202,13 @@
                 </button>
             </div>
 
+            <h3 id="titre-carte">La carte</h3>
+            <div class="chips" id="choix-famille" role="group" aria-label="Sujet"></div>
+            <div class="chips cartes" id="choix-carte" role="group" aria-label="Carte"></div>
+            <p class="explication" id="explication-carte"></p>
+
             <div id="reglages-libre">
                 <h3>Les réglages de la partie libre</h3>
-                <div class="reglage">
-                    <label for="choix-atlas">Carte</label>
-                    <select id="choix-atlas"></select>
-                </div>
                 <div class="reglage">
                     <label for="choix-niveau">Niveau</label>
                     <select id="choix-niveau"></select>

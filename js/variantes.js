@@ -5,43 +5,73 @@
 // independants et se combinent librement — un Expert peut jouer en marathon
 // sans chrono, un Debutant en manche chronometree.
 
-// Le rang de notoriete est porte par chaque pays dans data/*.json : 1 pour ceux
-// qu'une ecole francaise attend, 4 pour les micro-Etats. Un niveau n'est donc
-// pas un reglage vague, c'est un sac de tirage.
+// Les mots de la carte en cours. Chaque atlas porte les siens (`atlas.mots`,
+// ecrits par scripts/atlas.mjs) ; ceux-ci servent de repli et disent le monde.
+//
+// C'est ce qui permet d'ajouter une carte sans toucher aux enonces : « Quel est
+// ce pays ? » et « Quelle est cette région ? » sont le meme gabarit, rempli
+// avec deux vocabulaires. Le genre voyage avec les mots, sinon le jeu ecrirait
+// « Quel est cette région ? » a la premiere carte francaise.
+export const MOTS = {
+    entite: 'pays', entites: 'pays', unEntite: 'un pays', leEntite: 'le pays',
+    ceEntite: 'ce pays', quelEst: 'Quel est', leLa: 'le',
+    chef: 'capitale', laChef: 'la capitale', saChef: 'sa capitale', quelEstChef: 'Quelle est',
+    groupe: 'continent', leGroupe: 'le continent', duGroupe: 'du même continent',
+    acquis: 'acquis', jamaisVus: 'jamais vus'
+};
+
+const majuscule = mot => mot.charAt(0).toUpperCase() + mot.slice(1);
+
+// Remplit un gabarit. `{entite}` prend le mot tel quel, `{Entite}` le prend
+// avec une majuscule — de quoi commencer une phrase sans dedoubler la table.
+export const texte = (gabarit, mots = {}) => String(gabarit ?? '').replace(/\{(\w+)\}/g, (_, clef) => {
+    const table = { ...MOTS, ...mots };
+    if (clef in table) return table[clef];
+    const bas = clef.charAt(0).toLowerCase() + clef.slice(1);
+    return bas in table ? majuscule(table[bas]) : '';
+});
+
+// Le rang de notoriete est porte par chaque entite dans data/*.json : 1 pour
+// celles qu'une ecole francaise attend, 4 pour les plus pointues. Un niveau
+// n'est donc pas un reglage vague, c'est un sac de tirage.
 export const NIVEAUX = {
     decouverte: {
         libelle: 'Découverte',
-        resume: 'Les quarante pays les plus connus, avec le continent en indice.',
+        resume: 'Les plus connus, avec {leGroupe} en indice.',
         rangMax: 1, choix: 4, distracteurs: 'lointains',
-        aides: { continent: true, zoom: true }
+        aides: { groupe: true, zoom: true }
     },
     ecolier: {
         libelle: 'Écolier',
-        resume: 'Une centaine de pays, et des propositions du même continent.',
-        rangMax: 2, choix: 4, distracteurs: 'continent',
-        aides: { continent: false, zoom: true }
+        resume: 'Un cran plus loin, et des propositions {duGroupe}.',
+        rangMax: 2, choix: 4, distracteurs: 'groupe',
+        aides: { groupe: false, zoom: true }
     },
     voyageur: {
         libelle: 'Voyageur',
-        resume: 'Tous les pays, et les voisins comme pièges.',
+        resume: 'Toute la carte, et les voisins comme pièges.',
         rangMax: 4, choix: 4, distracteurs: 'voisins',
-        aides: { continent: false, zoom: false }
+        aides: { groupe: false, zoom: false }
     },
     expert: {
         libelle: 'Expert',
-        resume: 'Tous les pays, et le nom à écrire soi-même.',
+        resume: 'Toute la carte, et le nom à écrire soi-même.',
         rangMax: 4, choix: 0, distracteurs: 'voisins',
-        aides: { continent: false, zoom: false }
+        aides: { groupe: false, zoom: false }
     }
 };
 
 // Ce qu'on demande. `nommer` est le jeu tel qu'on l'imagine ; `localiser` est
 // la carte muette de l'ecole, et c'est le sens le plus naturel au doigt.
+//
+// `exige` nomme le champ que l'entite doit porter pour que la question ait une
+// reponse : sans capitale, pas de question de capitale ; sans numero, pas de
+// question de numero. C'est ce qui fait qu'une carte n'offre que ses sens.
 export const SENS = {
     nommer: {
-        libelle: 'Nommer le pays',
-        resume: 'Un pays s’allume sur la carte, vous le nommez.',
-        question: 'Quel est ce pays ?'
+        libelle: 'Nommer {leEntite}',
+        resume: '{UnEntite} s’allume sur la carte, vous {leLa} nommez.',
+        question: '{quelEst} {ceEntite} ?'
     },
     localiser: {
         libelle: 'Trouver sur la carte',
@@ -49,17 +79,37 @@ export const SENS = {
         question: 'Où est-ce ?'
     },
     capitale: {
-        libelle: 'Nommer la capitale',
-        resume: 'Un pays s’allume, vous donnez sa capitale.',
-        question: 'Quelle est sa capitale ?',
+        libelle: 'Nommer {laChef}',
+        resume: '{UnEntite} s’allume, vous donnez {saChef}.',
+        question: '{quelEstChef} {saChef} ?',
         exige: 'capitale'
+    },
+    numero: {
+        libelle: 'Donner le numéro',
+        resume: 'Un département s’allume, vous tapez son numéro. 35, c’est l’Ille-et-Vilaine.',
+        question: 'Quel est son numéro ?',
+        exige: 'numero',
+        chiffres: true
     },
     alterne: {
         libelle: 'En alternance',
-        resume: 'Les trois questions se suivent, sans prévenir.',
+        resume: 'Les questions de cette carte se suivent, sans prévenir.',
         question: ''
     }
 };
+
+// Les sens qu'une carte peut poser : ceux dont elle a les reponses. Le monde
+// n'a pas de numeros, une carte de fleuves n'aura pas de chef-lieu — chacune
+// n'offre que ce qu'elle sait demander.
+export function sensDe(atlas) {
+    const possede = champ => atlas?.entites?.some(e => e[champ]);
+    return Object.entries(SENS)
+        .filter(([, fiche]) => !fiche.exige || possede(fiche.exige))
+        .map(([id]) => id);
+}
+
+// Ceux que « En alternance » melange : tous les sens reels de la carte.
+export const sensAlternes = atlas => sensDe(atlas).filter(id => id !== 'alterne');
 
 export const RYTHMES = {
     manche: {
@@ -93,6 +143,6 @@ export const DEFAUTS = {
 export const signature = ({ atlas, niveau, sens, rythme, chrono }) =>
     [atlas, niveau, sens, rythme, chrono].join('·');
 
-export const libelleConfiguration = ({ atlas, niveau, sens, rythme, chrono }, nomAtlas = atlas) =>
-    [nomAtlas, NIVEAUX[niveau]?.libelle, SENS[sens]?.libelle, RYTHMES[rythme]?.libelle,
+export const libelleConfiguration = ({ atlas, niveau, sens, rythme, chrono }, nomAtlas = atlas, mots = MOTS) =>
+    [nomAtlas, NIVEAUX[niveau]?.libelle, texte(SENS[sens]?.libelle, mots), RYTHMES[rythme]?.libelle,
         CHRONOS[chrono]?.secondes ? CHRONOS[chrono].libelle : null].filter(Boolean).join(' · ');

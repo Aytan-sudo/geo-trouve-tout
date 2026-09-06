@@ -57,7 +57,7 @@ export function creerRendu({ surChoix, surSuggestion }) {
         // Pose la question. `entite` sert aux enonces qui nomment le pays —
         // « Où est la France ? » et son article, parce qu'un jeu francais qui
         // ecrit « Où est France ? » perd d'un coup son serieux.
-        question(question, entite, { saisieActive, aideSaisie, entites }) {
+        question(question, entite, { saisieActive, aideSaisie, entites, invite }) {
             api.verdict(null);
             saisieCourante = '';
             // La liste de « Ma carte » n'a rien a faire sous une question : on
@@ -86,7 +86,7 @@ export function creerRendu({ surChoix, surSuggestion }) {
                 elements.choix.hidden = true;
                 elements.choix.textContent = '';
                 elements.saisie.hidden = false;
-                api.saisie('', { aideSaisie, entites });
+                api.saisie('', { aideSaisie, entites, invite });
                 return;
             }
 
@@ -103,10 +103,10 @@ export function creerRendu({ surChoix, surSuggestion }) {
             });
         },
 
-        saisie(texte, { aideSaisie, entites }) {
+        saisie(texte, { aideSaisie, entites, invite = 'Écrivez le nom…' }) {
             saisieCourante = texte;
             elements.texte.textContent = texte;
-            elements.texte.dataset.invite = texte ? '' : 'Écrivez le nom…';
+            elements.texte.dataset.invite = texte ? '' : invite;
             elements.suggestions.textContent = '';
             if (!aideSaisie) return;
             for (const entite of suggestions(texte, entites)) {

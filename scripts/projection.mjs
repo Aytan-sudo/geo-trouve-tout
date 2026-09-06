@@ -38,4 +38,12 @@ export function lambert93([lon, lat], { lat1 = 44, lat2 = 49, lat0 = 46.5, lon0 
     return [rho(lat * RAD) * Math.sin(t), -(rho(p0) - rho(lat * RAD) * Math.cos(t))];
 }
 
-export const PROJECTIONS = { 'equal-earth': equalEarth, 'lambert': lambert93 };
+// La plate carree, centree sur son sujet et corrigee du cosinus de la
+// latitude : la projection des cartouches. Sur une ile de cinquante kilometres
+// la deformation est invisible, et le calcul ne peut pas diverger — un cone
+// cale sur la metropole, lui, envoie la Reunion a l'autre bout du plan.
+export function plateCarree([lon, lat], { lon0 = 0, lat0 = 0 } = {}) {
+    return [(lon - lon0) * Math.cos(lat0 * RAD), -(lat - lat0)];
+}
+
+export const PROJECTIONS = { 'equal-earth': equalEarth, 'lambert': lambert93, 'plate': plateCarree };

@@ -235,9 +235,7 @@ export const PIEGES = [
     { saisie: 'coree', pour: ['KOR', 'PRK'], message: "Laquelle ? Il y a la Corée du Nord et la Corée du Sud." },
     { saisie: 'amerique', pour: ['USA'], message: "L’Amérique est un continent — le pays s’appelle les États-Unis." },
     { saisie: 'hindou', pour: ['IND'], message: "Le pays s’écrit « Inde »." },
-    { saisie: 'perse', pour: ['IRN'], message: "La Perse s’appelle l’Iran depuis 1935." },
-    { saisie: 'birmanie', pour: ['MMR'], message: "" },
-    { saisie: 'republique tcheque', pour: ['CZE'], message: "" }
+    { saisie: 'perse', pour: ['IRN'], message: "La Perse s’appelle l’Iran depuis 1935." }
 ];
 
 export const CONTINENTS = {

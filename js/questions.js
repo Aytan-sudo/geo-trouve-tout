@@ -12,18 +12,20 @@
 // attendu, `propositions` les boutons a offrir — vides quand il faut ecrire ou
 // toucher la carte.
 
-import { NIVEAUX, SENS } from './variantes.js';
-
-const SENS_ALTERNES = ['nommer', 'localiser', 'capitale'];
+import { NIVEAUX, SENS, texte, sensAlternes } from './variantes.js';
 
 // Le sac de tirage : ce qui est jouable a ce niveau, dans ce sens.
+//
+// Une entite sans la reponse demandee sort du sac : un pays sans capitale
+// consensuelle ne peut pas etre pose en mode capitales. C'est `exige` qui le
+// dit, et cela vaut pour tout champ — le numero d'un departement comme le
+// chef-lieu d'une region.
 export function sacDe(atlas, { niveau, sens }) {
     const rangMax = NIVEAUX[niveau].rangMax;
-    const sens_ = SENS[sens];
+    const exige = SENS[sens]?.exige;
     return atlas.entites.filter(entite => {
         if (entite.rang > rangMax) return false;
-        if (sens_?.exige === 'capitale') return Boolean(entite.capitale);
-        if (sens === 'alterne') return true;
+        if (exige && !entite[exige]) return false;
         return true;
     });
 }
@@ -43,14 +45,16 @@ export function distracteurs(cible, sac, nombre, hasard, style) {
     let vivier;
     if (style === 'voisins') {
         // Les plus proches sur la carte : c'est ainsi qu'on cesse de confondre
-        // la Slovaquie et la Slovenie.
+        // la Slovaquie et la Slovenie, l'Aube et l'Aude.
         vivier = candidats.slice().sort((a, b) => eloignement(cible, a) - eloignement(cible, b))
             .slice(0, Math.max(nombre * 3, 8));
-    } else if (style === 'continent') {
-        const memeContinent = candidats.filter(e => e.continent === cible.continent);
-        vivier = memeContinent.length >= nombre ? memeContinent : candidats;
+    } else if (style === 'groupe') {
+        // Le groupe est le continent d'un pays, la region d'un departement :
+        // le voisinage administratif plutot que geometrique.
+        const memeGroupe = candidats.filter(e => e.groupe === cible.groupe);
+        vivier = memeGroupe.length >= nombre ? memeGroupe : candidats;
     } else {
-        const ailleurs = candidats.filter(e => e.continent !== cible.continent);
+        const ailleurs = candidats.filter(e => e.groupe !== cible.groupe);
         vivier = ailleurs.length >= nombre ? ailleurs : candidats;
     }
     return hasard.melanger(vivier.slice()).slice(0, nombre);
@@ -78,31 +82,51 @@ export function choisirCibles(sac, nombre, hasard, poids = null) {
     return choisis;
 }
 
-export function fabriquer(cible, sac, { niveau, sens }, hasard) {
+// Ce que l'entite doit repondre dans ce sens : son nom, son chef-lieu, son
+// numero. Une seule table, et les sens s'ajoutent sans toucher au reste.
+const reponseDe = (entite, sens) =>
+    sens === 'capitale' ? entite.capitale
+        : sens === 'numero' ? entite.numero
+            : entite.nom;
+
+export function fabriquer(cible, sac, { niveau, sens }, hasard, { mots, alternes } = {}) {
     const reglage = NIVEAUX[niveau];
-    const sensReel = sens === 'alterne' ? hasard.choisir(SENS_ALTERNES) : sens;
+    // « En alternance » ne melange que les sens de la carte : sur le monde il
+    // n'y a pas de numero a demander.
+    const tire = sens === 'alterne'
+        ? hasard.choisir(alternes?.length ? alternes : ['nommer', 'localiser'])
+        : sens;
+    // Et l'entite doit avoir la reponse. Le sac d'un sens donne l'assure deja,
+    // mais celui de l'alternance garde tout le monde : Israel et la Palestine
+    // n'ont pas de capitale consensuelle, et la question tombait sans reponse —
+    // un bouton vide parmi quatre. On leur demande alors leur nom.
+    const sensReel = SENS[tire].exige && !cible[SENS[tire].exige] ? 'nommer' : tire;
     const question = {
         sens: sensReel,
         cible: cible.id,
-        enonce: SENS[sensReel].question,
-        reponse: sensReel === 'capitale' ? cible.capitale : cible.nom,
+        enonce: texte(SENS[sensReel].question, mots),
+        reponse: reponseDe(cible, sensReel),
         propositions: [],
-        aide: reglage.aides.continent ? cible.continent : null,
+        aide: reglage.aides.groupe ? cible.groupe : null,
         zoom: reglage.aides.zoom || Boolean(cible.minuscule)
     };
 
     if (sensReel === 'localiser') return question;          // la carte est la reponse
-    if (reglage.choix < 2) return question;                 // le nom est a ecrire
+    if (reglage.choix < 2) return question;                 // la reponse est a ecrire
 
     const autres = distracteurs(cible, sac, reglage.choix - 1, hasard, reglage.distracteurs);
-    const textes = autres.map(e => sensReel === 'capitale' ? e.capitale : e.nom);
+    const textes = autres.map(e => reponseDe(e, sensReel));
     question.propositions = hasard.melanger([question.reponse, ...textes]);
     return question;
 }
 
 // Une manche entiere, d'un coup : c'est ce que le defi du jour partage.
+//
+// Toute la manche sort du meme atlas — c'est le sac qui la compose. Un defi du
+// jour ne peut donc pas melanger deux cartes, et un test le verifie.
 export function composerManche(atlas, config, hasard, { nombre = 10, poids = null } = {}) {
     const sac = sacDe(atlas, config);
     const cibles = choisirCibles(sac, nombre, hasard, poids);
-    return cibles.map(cible => fabriquer(cible, sac, config, hasard));
+    const options = { mots: atlas.mots, alternes: sensAlternes(atlas) };
+    return cibles.map(cible => fabriquer(cible, sac, config, hasard, options));
 }

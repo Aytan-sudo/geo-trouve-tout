@@ -3,7 +3,7 @@
 import { counter, preparer } from './harness.mjs';
 import { creerHasard, graineDepuisTexte } from '../js/hasard.js';
 import { composerManche, sacDe, fabriquer, distracteurs, choisirCibles } from '../js/questions.js';
-import { NIVEAUX } from '../js/variantes.js';
+import { NIVEAUX, sensDe } from '../js/variantes.js';
 
 const { check, report } = counter();
 const atlas = preparer('monde-pays');
@@ -50,10 +50,10 @@ check('« voisins » choisit des pays proches',
     voisins.every(e => Math.hypot(e.ancre[0] - france.ancre[0], e.ancre[1] - france.ancre[1]) < atlas.largeur / 6),
     voisins.map(e => e.nom).join(','));
 const lointains = distracteurs(france, sac, 3, graine(), 'lointains');
-check('« lointains » sort du continent', lointains.every(e => e.continent !== france.continent),
+check('« lointains » sort du groupe', lointains.every(e => e.groupe !== france.groupe),
     lointains.map(e => e.nom).join(','));
-const memeCoin = distracteurs(france, sac, 3, graine(), 'continent');
-check('« continent » reste en Europe', memeCoin.every(e => e.continent === france.continent),
+const memeCoin = distracteurs(france, sac, 3, graine(), 'groupe');
+check('« groupe » reste en Europe', memeCoin.every(e => e.groupe === france.groupe),
     memeCoin.map(e => e.nom).join(','));
 check('un distracteur n’est jamais la reponse',
     [...voisins, ...lointains, ...memeCoin].every(e => e.id !== 'FRA'));
@@ -76,10 +76,83 @@ check('« capitale » propose des capitales', capitale.propositions.length === 4
 
 console.log('\nLes aides');
 const facile = fabriquer(france, sac, { niveau: 'decouverte', sens: 'nommer' }, graine());
-check('Decouverte donne le continent', facile.aide === 'Europe');
+check('Decouverte donne le groupe', facile.aide === 'Europe');
 check('Voyageur ne donne rien', fabriquer(france, sac, { niveau: 'voyageur', sens: 'nommer' }, graine()).aide === null);
 const monaco = atlas.parId.get('MCO');
 check('un micro-Etat declenche le zoom quel que soit le niveau',
     fabriquer(monaco, sac, { niveau: 'voyageur', sens: 'nommer' }, graine()).zoom === true);
+
+console.log('\nAucune question sans reponse');
+// Le sac d'un sens donne ecarte deja les entites qui n'ont pas la reponse. Mais
+// « en alternance » garde tout le monde : Israel n'a pas de capitale
+// consensuelle, et la question tombait alors sans reponse, avec un bouton vide
+// parmi les quatre.
+const sansCapitale = atlas.entites.find(e => !e.capitale);
+const rabattue = fabriquer(sansCapitale, sac, { niveau: 'ecolier', sens: 'capitale' }, graine());
+check(`${sansCapitale.nom} n’est pas interroge sur sa capitale`, rabattue.sens === 'nommer');
+check('la question rabattue a une reponse', rabattue.reponse === sansCapitale.nom);
+check('aucune proposition vide', rabattue.propositions.every(p => typeof p === 'string' && p.length));
+const longue = composerManche(atlas, { niveau: 'voyageur', sens: 'alterne' }, graine(), { nombre: 60 });
+check('une longue alternance ne pose jamais de question sans reponse',
+    longue.every(q => q.sens === 'localiser'
+        || (typeof q.reponse === 'string' && q.reponse.length
+            && q.propositions.every(p => typeof p === 'string' && p.length))));
+
+console.log('\nLes cartes francaises');
+const departements = preparer('france-departements');
+const regions = preparer('france-regions');
+
+check('les departements offrent le numero', sensDe(departements).includes('numero'));
+check('les regions n’offrent pas de numero', !sensDe(regions).includes('numero'));
+check('le monde n’offre pas de numero', !sensDe(atlas).includes('numero'));
+check('toute carte sait nommer et localiser',
+    [atlas, departements, regions].every(a => ['nommer', 'localiser'].every(s => sensDe(a).includes(s))));
+
+const ille = departements.parId.get('35');
+const numero = fabriquer(ille, sacDe(departements, { niveau: 'voyageur', sens: 'numero' }),
+    { niveau: 'voyageur', sens: 'numero' }, graine(), { mots: departements.mots });
+check('« numero » attend 35', numero.reponse === '35');
+check('« numero » propose des numeros', numero.propositions.length === 4
+    && numero.propositions.every(p => /^(\d{2,3}|2[AB])$/.test(p)), numero.propositions.join(','));
+check('« numero » pose la question en francais', numero.enonce === 'Quel est son numéro ?');
+
+const prefecture = fabriquer(ille, sacDe(departements, { niveau: 'ecolier', sens: 'capitale' }),
+    { niveau: 'ecolier', sens: 'capitale' }, graine(), { mots: departements.mots });
+check('la prefecture d’Ille-et-Vilaine est Rennes', prefecture.reponse === 'Rennes');
+check('l’enonce prend les mots de la carte', prefecture.enonce === 'Quelle est sa préfecture ?');
+
+const bretagne = regions.parId.get('53');
+const chefLieu = fabriquer(bretagne, sacDe(regions, { niveau: 'ecolier', sens: 'capitale' }),
+    { niveau: 'ecolier', sens: 'capitale' }, graine(), { mots: regions.mots });
+check('une region demande son chef-lieu', chefLieu.enonce === 'Quel est son chef-lieu ?');
+check('l’enonce d’une region s’accorde',
+    fabriquer(bretagne, [], { niveau: 'expert', sens: 'nommer' }, graine(), { mots: regions.mots })
+        .enonce === 'Quelle est cette région ?');
+
+console.log('\nUne manche ne melange jamais deux cartes');
+// C'est la regle du defi du jour : une categorie, et une seule. Le sac vient
+// d'un atlas, donc la manche aussi — on le verifie sur chaque carte, dans
+// chaque sens, plutot que de s'en remettre a la lecture du code.
+for (const carte of [atlas, departements, regions]) {
+    const connus = new Set(carte.entites.map(e => e.id));
+    let melange = null;
+    for (const sens of sensDe(carte)) {
+        for (const niveau of ['decouverte', 'voyageur']) {
+            const manche = composerManche(carte, { niveau, sens }, graine(), { nombre: 10 });
+            const intrus = manche.find(q => !connus.has(q.cible));
+            if (intrus) melange = `${sens}/${niveau} : ${intrus.cible}`;
+        }
+    }
+    check(`« ${carte.nom} » ne pose que ses propres entites`, melange === null, melange ?? '');
+}
+
+// Et l'alternance ne va pas chercher un sens que la carte ne sait pas poser.
+const alternees = composerManche(atlas, { niveau: 'voyageur', sens: 'alterne' }, graine(), { nombre: 30 });
+check('« alterne » n’invente pas de sens sur le monde',
+    alternees.every(q => sensDe(atlas).includes(q.sens)),
+    [...new Set(alternees.map(q => q.sens))].join(','));
+const alterneesFrance = composerManche(departements, { niveau: 'voyageur', sens: 'alterne' }, graine(), { nombre: 40 });
+check('« alterne » utilise le numero sur les departements',
+    alterneesFrance.some(q => q.sens === 'numero'));
 
 report();

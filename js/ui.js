@@ -3,8 +3,8 @@
 // Rien ici ne decide quoi que ce soit du jeu : ce module remplit des ecrans a
 // partir de ce qu'on lui donne, et previent quand on a touche un bouton.
 
-import { NIVEAUX, SENS, RYTHMES, CHRONOS, libelleConfiguration } from './variantes.js';
-import { CATALOGUE, nomDAtlas } from './atlas.js';
+import { NIVEAUX, SENS, RYTHMES, CHRONOS, DEFAUTS, libelleConfiguration, texte } from './variantes.js';
+import { FAMILLES, nomDAtlas, ficheDAtlas, familleDe, cartesDe } from './atlas.js';
 import { THEMES } from './themes.js';
 import { dateFrancaise, duree } from './defi.js';
 
@@ -28,15 +28,35 @@ export function brancherDialogues() {
     }
 }
 
-function remplir(select, table, valeur) {
+function remplir(select, table, valeur, mots, garder = null) {
     select.textContent = '';
     for (const [id, fiche] of Object.entries(table)) {
+        if (garder && !garder.includes(id)) continue;
         const option = document.createElement('option');
         option.value = id;
-        option.textContent = fiche.libelle;
+        option.textContent = texte(fiche.libelle, mots);
         select.append(option);
     }
     select.value = valeur;
+    // Un reglage garde d'une autre carte — le numero d'un departement, sur le
+    // monde — n'existe plus dans la liste : le select tomberait a vide et
+    // n'enverrait jamais de « change ». On le ramene au premier choix.
+    if (!select.value) select.value = select.options[0]?.value ?? '';
+}
+
+// Une rangee de pastilles a choisir. Elle sert aux themes, aux familles de
+// cartes et aux cartes : meme forme, meme comportement, un seul endroit.
+function pastilles(hote, choix, actif, surChoix) {
+    hote.textContent = '';
+    for (const { id, libelle, titre } of choix) {
+        const bouton = document.createElement('button');
+        bouton.type = 'button';
+        bouton.textContent = libelle;
+        if (titre) bouton.title = titre;
+        bouton.setAttribute('aria-pressed', String(id === actif));
+        bouton.addEventListener('click', () => surChoix(id));
+        hote.append(bouton);
+    }
 }
 
 // Les Options reglent le jeu — le theme, les sensations — et rien de plus.
@@ -54,18 +74,9 @@ export function creerOptions({ surChangement, surPartie }) {
 
         peindre(etat) {
             for (const [clef, id] of Object.entries(cases)) $(id).checked = etat[clef] !== false;
-            $('resume-partie').textContent = libelleConfiguration(etat, nomDAtlas(etat.atlas));
-
-            const themes = $('choix-theme');
-            themes.textContent = '';
-            for (const theme of THEMES) {
-                const bouton = document.createElement('button');
-                bouton.type = 'button';
-                bouton.textContent = theme.libelle;
-                bouton.setAttribute('aria-pressed', String(theme.id === etat.theme));
-                bouton.addEventListener('click', () => surChangement({ theme: theme.id }));
-                themes.append(bouton);
-            }
+            $('resume-partie').textContent = libelleConfiguration(etat, nomDAtlas(etat.atlas), etat.mots);
+            pastilles($('choix-theme'), THEMES.map(t => ({ id: t.id, libelle: t.libelle })),
+                etat.theme, theme => surChangement({ theme }));
         },
 
         montrer(etat) { api.peindre(etat); ouvrir(dialogue); }
@@ -78,28 +89,31 @@ export function creerOptions({ surChangement, surPartie }) {
     return api;
 }
 
-// Le menu du depart : quelle partie on commence, et sous quels reglages. C'est
-// le seul endroit qui lance une partie libre, et le seul qui montre les cinq
-// axes cote a cote — un joueur qui veut changer de niveau n'a plus a chercher
-// dans les Options.
-export function creerMenuPartie({ surChangement, surCommencer }) {
+// Le menu du depart : quelle partie on commence, sur quelle carte, et sous
+// quels reglages. C'est le seul endroit qui lance une partie.
+//
+// Les cartes s'y choisissent en deux temps — la famille, puis la carte — pour
+// que la liste ne s'allonge pas indefiniment : les fleuves et les continents
+// seront une pastille de plus dans la premiere rangee, pas une ligne de plus
+// dans un menu deroulant.
+//
+// Le defi du jour a lui aussi sa carte, et c'est voulu : un defi porte sur une
+// categorie et une seule. Le monde le matin, les departements le soir, jamais
+// les deux dans la meme manche.
+export function creerMenuPartie({ surChangement, surCommencer, apercu }) {
     const dialogue = $('dialogue-partie');
     const champs = {
-        atlas: $('choix-atlas'), niveau: $('choix-niveau'), sens: $('choix-sens'),
+        niveau: $('choix-niveau'), sens: $('choix-sens'),
         rythme: $('choix-rythme'), chrono: $('choix-chrono')
     };
     const modes = { jour: $('mode-jour'), libre: $('mode-libre') };
 
-    champs.atlas.textContent = '';
-    for (const carte of CATALOGUE) {
-        const option = document.createElement('option');
-        option.value = carte.id;
-        option.textContent = `${carte.emoji} ${carte.nom}`;
-        champs.atlas.append(option);
-    }
-
     let mode = 'libre';
     let dernier = {};
+
+    // La carte que ce mode-la utilise, et le reglage qui la retient.
+    const clefCarte = () => (mode === 'jour' ? 'carteDuJour' : 'atlas');
+    const carteDe = etat => etat[clefCarte()] ?? DEFAUTS.atlas;
 
     const api = {
         dialogue,
@@ -107,21 +121,44 @@ export function creerMenuPartie({ surChangement, surCommencer }) {
 
         peindre(etat = dernier) {
             dernier = etat;
-            champs.atlas.value = etat.atlas;
-            remplir(champs.niveau, NIVEAUX, etat.niveau);
-            remplir(champs.sens, SENS, etat.sens);
-            remplir(champs.rythme, RYTHMES, etat.rythme);
-            remplir(champs.chrono, CHRONOS, etat.chrono);
-            $('explication-niveau').textContent = NIVEAUX[etat.niveau]?.resume ?? '';
-            $('explication-sens').textContent = SENS[etat.sens]?.resume ?? '';
-            $('explication-rythme').textContent = RYTHMES[etat.rythme]?.resume ?? '';
-            $('explication-chrono').textContent = CHRONOS[etat.chrono]?.resume ?? '';
+            const carte = carteDe(etat);
+            const vue = apercu?.(carte);
+            const mots = vue?.mots ?? {};
 
             for (const [clef, bouton] of Object.entries(modes)) {
                 bouton.setAttribute('aria-pressed', String(clef === mode));
             }
+
+            pastilles($('choix-famille'), FAMILLES.map(f => ({ id: f.id, libelle: `${f.emoji} ${f.nom}`, titre: f.resume })),
+                familleDe(carte), famille => surChangement({ [clefCarte()]: cartesDe(famille)[0].id }));
+            pastilles($('choix-carte'), cartesDe(familleDe(carte)).map(c => ({ id: c.id, libelle: c.nom, titre: c.sousTitre })),
+                carte, id => surChangement({ [clefCarte()]: id }));
+            $('titre-carte').textContent = mode === 'jour' ? 'La carte du défi' : 'La carte';
+            // La carte du defi dit ses propres mots : « Dix départements, les
+            // mêmes pour tout le monde ». Un defi porte sur une categorie, et
+            // la phrase le montre avant meme de commencer.
+            $('resume-jour').textContent = texte(
+                'Dix {entites}, les mêmes pour tout le monde aujourd’hui.',
+                apercu?.(etat.carteDuJour ?? DEFAUTS.atlas)?.mots);
+            $('explication-carte').textContent = ficheDAtlas(carte)?.sousTitre ?? '';
+
+            remplir(champs.niveau, NIVEAUX, etat.niveau, mots);
+            remplir(champs.sens, SENS, etat.sens, mots, vue?.sens);
+            remplir(champs.rythme, RYTHMES, etat.rythme, mots);
+            remplir(champs.chrono, CHRONOS, etat.chrono, mots);
+            // Le niveau se dit en nombre d'entites de cette carte-la : « Écolier
+            // — 71 départements sur 101 » vaut mieux qu'une phrase generale.
+            const sac = vue?.sac?.({ ...etat, sens: champs.sens.value });
+            $('explication-niveau').textContent = [
+                texte(NIVEAUX[champs.niveau.value]?.resume, mots),
+                sac ? `${sac} ${texte('{entites}', mots)} sur ${vue.total}` : ''
+            ].filter(Boolean).join(' — ');
+            $('explication-sens').textContent = texte(SENS[champs.sens.value]?.resume, mots);
+            $('explication-rythme').textContent = RYTHMES[champs.rythme.value]?.resume ?? '';
+            $('explication-chrono').textContent = CHRONOS[champs.chrono.value]?.resume ?? '';
+
             // Le defi du jour est le meme pour tout le monde : ses reglages ne
-            // se discutent pas, alors on les retire de la vue.
+            // se discutent pas, alors on les retire de la vue. Sa carte, si.
             $('reglages-libre').hidden = mode !== 'libre';
             $('partie-commencer').textContent = mode === 'jour' ? 'Jouer le défi' : 'Commencer';
         },
@@ -143,7 +180,10 @@ export function creerMenuPartie({ surChangement, surCommencer }) {
     return api;
 }
 
-export function montrerStats({ stats, acquis, total }) {
+// `motsDe` rend le vocabulaire d'une carte quand elle est deja chargee : le
+// palmares nomme alors « Nommer la préfecture » plutot que « Nommer la
+// capitale ». Une carte jamais ouverte reste dite dans les mots du monde.
+export function montrerStats({ stats, acquis, total, motsDe = () => undefined }) {
     $('stat-serie').textContent = stats.serie ?? 0;
     $('stat-record-serie').textContent = stats.meilleureSerie ?? 0;
     $('stat-acquis').textContent = `${acquis}/${total}`;
@@ -156,7 +196,7 @@ export function montrerStats({ stats, acquis, total }) {
         const [atlas, niveau, sens, rythme, chrono] = signature.split('·');
         const item = document.createElement('li');
         const nom = document.createElement('span');
-        nom.textContent = libelleConfiguration({ atlas, niveau, sens, rythme, chrono }, nomDAtlas(atlas));
+        nom.textContent = libelleConfiguration({ atlas, niveau, sens, rythme, chrono }, nomDAtlas(atlas), motsDe?.(atlas));
         const valeur = document.createElement('b');
         valeur.textContent = fiche.meilleureDuree
             ? `${fiche.meilleur} · ${duree(fiche.meilleureDuree)}`

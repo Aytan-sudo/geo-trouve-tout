@@ -3,10 +3,72 @@
 Journal de bord du jeu. Ce qui est fait est en haut, ce qui reste en bas, et
 chaque entrée dit assez pour être reprise dans six mois sans relire le code.
 
-État au 6 septembre 2026 : **1.0.1 publiée**, 262 vérifications vertes,
-vérificateur iOS au vert sur iPhone 15 et iPhone SE.
+État au 7 septembre 2026 : **1.1.0**, 438 vérifications vertes, vérificateur iOS
+au vert sur iPhone 15 et iPhone SE.
 
 ---
+
+## 1.1.0 — La France, et une carte n'est plus un cas particulier
+
+Fait. Les 101 départements et les 18 régions, outre-mer compris.
+
+- [x] **Départements** (101) et **régions** (18), contours `france-geojson`
+      (Licence Ouverte), fichiers « avec outre-mer » — les seuls à porter les
+      cinq DROM. Projection Lambert conique pour la métropole.
+- [x] **Les DROM en cartouches.** Chacun est projeté pour lui-même en plate
+      carrée corrigée du cosinus (un cône calé sur la métropole enverrait la
+      Réunion à l'autre bout du plan), puis posé dans sa case, à sa propre
+      échelle. La colonne occupe 26 % de la largeur, à gauche. Le cadre est
+      dessiné, **jamais le nom** : l'écrire donnerait la réponse.
+- [x] **Le contenu à la main** : noms, articles, préfectures, chefs-lieux,
+      numéros, rangs de notoriété — `scripts/france.mjs`. Les rangs découpent
+      31 / 71 / 97 / 101 départements selon le niveau.
+- [x] **La question du numéro**, avec un pavé de chiffres qui porte A et B :
+      sans eux, 2A et 2B seraient intapables. « 1 » vaut « 01 ».
+- [x] `tests/test-atlas.mjs` étendu : numéros uniques et à deux chiffres,
+      « 2A »/« 2B » distincts après normalisation, cartouches dans le cadre et
+      qui contiennent bien ce qu'ils annoncent, mots complets, sacs jouables
+      dans chaque sens à chaque niveau.
+
+**Ce que l'ajout a changé dans le moteur**, et qui servira aux cartes
+suivantes :
+
+- **Chaque atlas porte ses mots** (`atlas.mots`) : « pays », « département »,
+  « région », avec leur genre. Les énoncés sont des gabarits — « {quelEst}
+  {ceEntite} ? » — remplis par la carte. C'est ce qui permet d'écrire
+  « Quelle est cette région ? » sans une ligne de code de plus.
+- **Chaque atlas déclare ses sens** : `exige` nomme le champ qu'une entité doit
+  porter pour que la question ait une réponse. Le monde n'a pas de numéros, donc
+  pas la question ; une carte de fleuves n'aura pas de chef-lieu.
+- **Chaque atlas dit ce qu'il tolère** : `couverture` (ce qu'il accepte de perdre
+  sur les bords) et `zoomCadrage` (jusqu'où le jeu se rapproche pour poser une
+  question). La valeur dupliquée entre `js/carte.js` et `css/interface.css`,
+  signalée ici en dette, **n'existe plus** : elle vient du fichier d'atlas et
+  passe par une variable CSS.
+- **`continent` est devenu `groupe`** : le continent d'un pays, la région d'un
+  département. Distracteurs et indices n'ont pas changé de code.
+- **Un défi du jour par carte.** La graine mêle la date et l'identifiant de la
+  carte ; celle du monde est inchangée, pour que les défis publiés se rejouent.
+  Une manche sort d'un seul sac, donc d'un seul atlas — `tests/test-questions.mjs`
+  le vérifie carte par carte et sens par sens.
+- **Une question sans réponse était possible.** En « alternance », le sac garde
+  toutes les entités — c'est le principe — et le sens se tire ensuite. Israël et
+  la Palestine, qui n'ont pas de capitale déclarée, tombaient donc parfois sur
+  la question des capitales : bonne réponse `undefined`, un bouton vide parmi
+  quatre. `fabriquer()` rabat maintenant sur le nom, et un test parcourt une
+  longue alternance pour s'en assurer.
+- **Les pièges servaient à rien.** La table de `scripts/pays.mjs` — « Angleterre »,
+  « Hollande », « Congo » — n'était écrite dans aucun fichier d'atlas : le jeu
+  ne l'a jamais lue. Elle y est maintenant, filtrée par carte, avec les régions
+  d'avant 2016 pour la France (« Aquitaine », « Picardie », « Rhône-Alpes »…).
+  Un test refuse désormais un piège mort ou muet.
+
+Reste ouvert sur la France :
+
+- [ ] Les **arrondissements** et les **cantons** : la source les a, le jeu ne
+      les propose pas. À rouvrir seulement si quelqu'un les demande.
+- [ ] Le rang de notoriété des départements est un jugement, comme celui des
+      pays. 31 en Découverte : à revoir après avoir vu un enfant jouer.
 
 ## 1.0.1 — le premier retour de joueur
 
@@ -80,34 +142,10 @@ iPhone — simulateur ou téléphone :
 
 ---
 
-## 1.1 — La France
-
-Le gros morceau du contenu scolaire, et la raison d'être du jeu pour un enfant
-de CM.
-
-- [ ] **Départements** (101) : contours IGN via `france-geojson`
-      (https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/departements.geojson,
-      Licence Ouverte — vérifié accessible le 6/09/2026). Trois questions
-      possibles sur le même atlas : nommer, situer, donner le **numéro**, et la
-      **préfecture**.
-- [ ] **Régions** (18) et leurs chefs-lieux.
-- [ ] **La projection est déjà écrite** : `scripts/projection.mjs` exporte
-      `lambert93`, jamais utilisé pour l'instant. Paramètres par défaut calés
-      sur la métropole (lat1 44, lat2 49, lat0 46.5, lon0 3).
-- [ ] **Les DROM en cartouches** : c'est le vrai travail. La Guadeloupe et la
-      Réunion ne peuvent pas rester à leur place sans réduire la métropole à un
-      timbre-poste. Il faut projeter chaque DROM séparément puis le poser dans
-      un encart, ce que `scripts/atlas.mjs` ne sait pas faire aujourd'hui —
-      prévoir un champ `cartouches: [{ id, boite, echelle }]` dans le fichier
-      d'atlas, et un cadre dessiné par `carte.js`.
-- [ ] **Le contenu à la main**, comme pour les pays : noms, numéros,
-      préfectures, rangs de notoriété. Un département n'a pas d'article
-      (« Trouve le Cantal », « Trouve la Corrèze ») : le champ `article` existe
-      déjà et sert aux énoncés.
-- [ ] Étendre `tests/test-atlas.mjs` : le numéro doit être unique, la préfecture
-      présente, et « 2A »/« 2B » doivent survivre à la normalisation.
-
 ## 1.2 — Les fleuves
+
+*(Le travail d'infrastructure est fait : une famille de plus dans
+`js/atlas.js`, un vocabulaire, un sens propre. Le reste est de la géométrie.)*
 
 - [ ] **Fleuves de France** (~20) et **fleuves du monde** (~30). Source :
       Natural Earth `ne_50m_rivers_lake_centerlines`, domaine public.
@@ -155,11 +193,13 @@ de CM.
 - **Les rangs de notoriété sont un jugement**, pas une donnée. 57 pays en rang 1
   est peut-être généreux pour « Découverte » : à revoir après avoir vu un enfant
   jouer.
-- **`COUVERTURE_MAX` (1.55) dans `js/carte.js` et le `/ 1.55` de `.scene` dans
-  `css/interface.css` doivent rester égaux.** C'est la seule valeur dupliquée
-  du projet ; elle est commentée aux deux endroits.
-- **Le mode « alterne »** existe dans `variantes.js` mais n'a jamais été joué
-  longuement : vérifier qu'enchaîner localiser et nommer ne désoriente pas.
+- ~~`COUVERTURE_MAX` dupliqué entre `js/carte.js` et `css/interface.css`~~ :
+  réglé en 1.1.0. Chaque atlas porte sa `couverture`, `js/app.js` la pose en
+  variable CSS, et les deux lectures viennent de la même source.
+- **Le mode « alterne »** n'a toujours pas été joué longuement par un humain :
+  vérifier qu'enchaîner localiser, nommer et numéro ne désoriente pas. Le bug
+  qu'il cachait — une question sans réponse sur les pays sans capitale — est
+  réglé en 1.1.0.
 - **Israël et la Palestine** n'ont pas de capitale déclarée et sortent du mode
   capitales. Si un jour le mode capitales devient le mode par défaut, vérifier
   que le sac reste assez grand.

@@ -46,21 +46,27 @@ for (const [saisie, id, attendu, propos] of cas) {
 
 console.log('\nLe garde-fou');
 // C'est la regle la plus importante du module : la tolerance orthographique ne
-// doit jamais transformer un pays en un autre. Iran/Irak sont a une lettre.
-const paires = [];
-for (const a of atlas.entites) {
-    for (const b of atlas.entites) {
-        if (a.id >= b.id) continue;
-        if (distance(normaliser(a.nom), normaliser(b.nom), 1) <= 1) paires.push(`${a.nom}/${b.nom}`);
+// doit jamais transformer une entite en une autre. Iran/Irak sont a une lettre,
+// l'Aube et l'Aude aussi — et la carte des departements en compte davantage que
+// celle du monde. On parcourt donc chaque carte.
+for (const id of ['monde-pays', 'europe-pays', 'france-departements', 'france-regions']) {
+    const carte = preparer(id);
+    const indexCarte = indexer(carte.entites);
+    const paires = [];
+    for (const a of carte.entites) {
+        for (const b of carte.entites) {
+            if (a.id >= b.id) continue;
+            if (distance(normaliser(a.nom), normaliser(b.nom), 1) <= 1) paires.push([a, b]);
+        }
     }
-}
-check('les paires a une lettre sont connues', paires.length <= 4, paires.join(', '));
-for (const paire of paires) {
-    const [nomA, nomB] = paire.split('/');
-    const a = atlas.entites.find(e => e.nom === nomA);
-    const b = atlas.entites.find(e => e.nom === nomB);
-    check(`« ${nomB} » ne passe pas pour ${nomA}`, verifier(nomB, a, { index }).verdict === 'confusion');
-    check(`« ${nomA} » ne passe pas pour ${nomB}`, verifier(nomA, b, { index }).verdict === 'confusion');
+    check(`${carte.nom} : les paires a une lettre sont connues`, paires.length <= 12,
+        paires.map(([a, b]) => `${a.nom}/${b.nom}`).join(', '));
+    let fuites = [];
+    for (const [a, b] of paires) {
+        if (verifier(b.nom, a, { index: indexCarte }).verdict !== 'confusion') fuites.push(`${b.nom}→${a.nom}`);
+        if (verifier(a.nom, b, { index: indexCarte }).verdict !== 'confusion') fuites.push(`${a.nom}→${b.nom}`);
+    }
+    check(`${carte.nom} : aucune ne passe pour l’autre`, fuites.length === 0, fuites.join(', '));
 }
 
 console.log('\nCe qui compte comme reussi');

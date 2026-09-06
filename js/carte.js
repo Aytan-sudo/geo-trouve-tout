@@ -11,6 +11,7 @@
 
 const NS = 'http://www.w3.org/2000/svg';
 const ZOOM_MAX = 14;
+const COUVERTURE_DEFAUT = 1.55;
 
 const balise = (nom, attributs = {}) => {
     const noeud = document.createElementNS(NS, nom);
@@ -34,6 +35,17 @@ export function creerCarte(hote, atlas, { surTouche = null } = {}) {
         width: atlas.largeur * 3, height: atlas.hauteur * 3
     }));
     if (atlas.decor) vue.append(balise('path', { class: 'decor', d: atlas.decor }));
+
+    // Les cartouches : la Guadeloupe et la Reunion sont a huit mille kilometres
+    // de la metropole, chacune dans sa case et a sa propre echelle. Le cadre est
+    // dessine, jamais le nom — l'ecrire donnerait la reponse.
+    for (const cartouche of atlas.cartouches ?? []) {
+        const [x0, y0, x1, y1] = cartouche.boite;
+        vue.append(balise('rect', {
+            class: 'cartouche', x: x0, y: y0, width: x1 - x0, height: y1 - y0,
+            rx: 8, 'aria-hidden': 'true'
+        }));
+    }
 
     const pays = balise('g', { class: 'pays' });
     const noeuds = new Map();
@@ -62,7 +74,20 @@ export function creerCarte(hote, atlas, { surTouche = null } = {}) {
     // elle-meme le rapport de la carte (css, --ratio-scene), et ce qui reste de
     // vide est comble ici — jamais plus que ce plafond, qui borne la coupe aux
     // bords vides du Pacifique.
-    const COUVERTURE_MAX = 1.55;
+    // Ce que la carte accepte de perdre sur les bords pour remplir la boite.
+    // Le monde tolere qu'on lui rogne le Pacifique ; la France, dont la colonne
+    // de cartouches touche le bord gauche, ne tolere presque rien. Chaque atlas
+    // porte donc sa valeur, et css/interface.css lit la meme par une variable.
+    const COUVERTURE_MAX = atlas.couverture ?? COUVERTURE_DEFAUT;
+
+    // Jusqu'ou la carte se rapproche d'elle-meme pour poser une question.
+    //
+    // Sur le monde, la forme du pays est la reponse : on peut grossir autant
+    // qu'on veut. Sur les departements, c'est la POSITION dans la France qui
+    // repond — un rectangle vert au milieu de rectangles verts n'apprend rien.
+    // Ces cartes-la plafonnent donc leur cadrage, et l'epingle marque les plus
+    // petites. Le pincement, lui, garde toute sa course.
+    const ZOOM_CADRAGE = atlas.zoomCadrage ?? ZOOM_MAX;
     const couverture = () => {
         const boite = svg.getBoundingClientRect();
         if (!boite.width || !boite.height) return 1;
@@ -125,7 +150,7 @@ export function creerCarte(hote, atlas, { surTouche = null } = {}) {
         const [x0, y0, x1, y1] = entite.boite;
         const large = Math.max(x1 - x0, atlas.largeur / 400);
         const haut = Math.max(y1 - y0, atlas.hauteur / 400);
-        echelle = Math.min(ZOOM_MAX, Math.max(couverture(),
+        echelle = Math.min(ZOOM_CADRAGE, Math.max(couverture(),
             Math.min(atlas.largeur * part / large, atlas.hauteur * part / haut)));
         dx = atlas.largeur / 2 - ((x0 + x1) / 2) * echelle;
         dy = atlas.hauteur / 2 - ((y0 + y1) / 2) * echelle;

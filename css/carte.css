@@ -28,6 +28,16 @@
 
 .mer { fill: var(--mer); }
 
+/* La case d'un cartouche : le cadre d'un encart d'atlas scolaire. Son nom n'y
+ * est pas — il donnerait la reponse. */
+.cartouche {
+    fill: var(--mer);
+    stroke: var(--decor-trait);
+    stroke-width: 1.5;
+    vector-effect: non-scaling-stroke;
+    opacity: .9;
+}
+
 .decor {
     fill: var(--decor);
     stroke: var(--decor-trait);

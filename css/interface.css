@@ -174,12 +174,13 @@ body {
 
 .scene {
     position: relative;
-    /* La boite epouse le rapport de la carte, divise par ce qu'on accepte de
-     * rogner sur les bords vides du Pacifique — la meme valeur que
-     * COUVERTURE_MAX dans js/carte.js. Le resultat : pas de bande bleue autour
-     * de la carte, et pas de continent hors du cadre. Ce qui reste de hauteur
-     * profite aux boutons de reponse, qui en ont l'usage. */
-    aspect-ratio: calc(var(--ratio-carte, 2.25) / 1.55);
+    /* La boite epouse le rapport de la carte, divise par ce que la carte accepte
+     * de perdre sur ses bords. Les deux valeurs viennent du fichier d'atlas et
+     * sont posees par js/app.js : la duplication d'hier entre ce fichier et
+     * js/carte.js n'existe plus. Le resultat : pas de bande bleue autour de la
+     * carte, et pas de continent hors du cadre. Ce qui reste de hauteur profite
+     * aux boutons de reponse, qui en ont l'usage. */
+    aspect-ratio: calc(var(--ratio-carte, 2.25) / var(--couverture, 1.55));
     /* Elle ne grandit pas : sans quoi la boite s'etire et le rapport ci-dessus
      * ne sert plus a rien. Ce qui reste de hauteur va a la zone de reponse. */
     flex: 0 1 auto;
@@ -224,10 +225,14 @@ body {
     box-shadow: var(--ombre);
 }
 
+/* En haut a gauche, et non en bas : c'est le seul coin libre sur toutes les
+ * cartes. En bas, elle couvrait le dernier cartouche de la France. L'indice de
+ * question occupe le meme coin, mais les deux ne s'affichent jamais ensemble —
+ * la legende n'existe que sur « Ma carte », qui ne pose pas de question. */
 .legende {
     position: absolute;
     left: 8px;
-    bottom: 8px;
+    top: 8px;
     display: flex;
     gap: 12px;
     padding: 7px 12px;
@@ -256,8 +261,13 @@ body {
 .reponse {
     /* Elle recupere la hauteur que la carte ne prend pas, et centre ce qu'elle
      * contient : sur un grand telephone, les boutons respirent au lieu de se
-     * tasser sous une bande vide. */
-    flex: 1 1 auto;
+     * tasser sous une bande vide.
+     *
+     * Elle ne se laisse pas comprimer sous son contenu (`flex-shrink: 0`) :
+     * c'est la carte qui cede. Sur un petit ecran et une carte presque carree —
+     * l'Europe, la France — les quatre reponses passaient sinon sous la
+     * navigation, et le clavier d'Expert n'avait plus la place de tenir. */
+    flex: 1 0 auto;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -709,9 +719,12 @@ select {
     border-top: 1px solid var(--bord);
 }
 
-.choix-theme { display: flex; flex-wrap: wrap; gap: 7px; }
+/* Les rangees de pastilles a choisir : themes, familles de cartes, cartes.
+ * Elles s'allongent en s'enroulant, ce qui laisse la place aux cartes a venir
+ * sans changer la mise en page. */
+.chips { display: flex; flex-wrap: wrap; gap: 7px; }
 
-.choix-theme button {
+.chips button {
     min-height: 44px;
     padding: 8px 14px;
     border: 1px solid var(--bord);
@@ -724,7 +737,12 @@ select {
     touch-action: manipulation;
 }
 
-.choix-theme button[aria-pressed="true"] { border-color: var(--accent); background: var(--surface); font-weight: 700; }
+.chips button[aria-pressed="true"] { border-color: var(--accent); background: var(--surface); font-weight: 700; }
+
+/* La rangee des cartes d'une famille : un cran en dessous de celle des
+ * familles, comme une precision de ce qu'on vient de choisir. */
+.cartes { margin-top: 7px; padding-left: 12px; border-left: 2px solid var(--bord); }
+.cartes button { font-size: 13.5px; min-height: 44px; }
 
 .option {
     display: flex;
@@ -850,6 +868,16 @@ select {
     .touche { height: 44px; font-size: 16px; }
     .navigation button { min-height: 46px; }
     .reponse { padding: 8px 10px 2px; }
+}
+
+/* L'ecran vraiment court, clavier ouvert : il faut 250 px a la saisie, 68 a la
+ * navigation, et la carte prend ce qui reste. Son plancher descend donc — une
+ * vignette de carte pendant qu'on ecrit vaut mieux qu'une page qui defile sous
+ * le doigt. Les hauteurs de cible, elles, ne bougent pas. */
+@media (max-height: 620px) {
+    .scene { min-height: 96px; }
+    .suggestions { margin-top: 6px; }
+    .ardoise { min-height: 46px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

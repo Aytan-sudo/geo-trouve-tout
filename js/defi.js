@@ -21,16 +21,34 @@ export const CONFIG_DU_JOUR = {
     rythme: 'manche', chrono: 'sans', aideSaisie: true
 };
 
-export const graineDuJour = iso => graineDepuisTexte(`geo-trouve-tout:${iso}`);
+// Un defi porte sur une carte, et une seule.
+//
+// C'est la regle : une manche ne melange jamais deux categories. On ne demande
+// pas la Colombie et la Corrèze dans la meme serie — ni le meme jour a deux
+// joueurs qui ont choisi la meme carte. Chaque carte a donc son defi, tire de
+// la date ET de son identifiant, et la configuration ne change que d'atlas.
+export const configDuJour = (atlas = CONFIG_DU_JOUR.atlas) => ({ ...CONFIG_DU_JOUR, atlas });
+
+// La graine du monde reste celle d'avant : le defi publie hier doit se rejouer
+// a l'identique. Les autres cartes ajoutent leur nom au sel.
+export const graineDuJour = (iso, atlas = CONFIG_DU_JOUR.atlas) =>
+    graineDepuisTexte(atlas === CONFIG_DU_JOUR.atlas
+        ? `geo-trouve-tout:${iso}`
+        : `geo-trouve-tout:${iso}:${atlas}`);
 
 // Ce que l'adresse demande. Un lien de defi porte une date, un lien de partie
 // libre porte une graine et sa configuration — jamais un resultat, jamais une
 // solution.
-export function lireAdresse(recherche = '') {
+export function lireAdresse(recherche = '', cartes = null) {
     const params = new URLSearchParams(recherche);
     const jour = params.get('jour');
     if (jour && /^\d{4}-\d{2}-\d{2}$/.test(jour)) {
-        return { mode: 'jour', jour, config: { ...CONFIG_DU_JOUR }, graine: graineDuJour(jour) };
+        // La carte du defi voyage avec la date. Une carte inconnue — un lien
+        // d'une version future, une adresse bricolee — retombe sur le monde
+        // plutot que de ne rien ouvrir.
+        const voulue = params.get('carte');
+        const atlas = voulue && (!cartes || cartes.includes(voulue)) ? voulue : CONFIG_DU_JOUR.atlas;
+        return { mode: 'jour', jour, config: configDuJour(atlas), graine: graineDuJour(jour, atlas) };
     }
     const graine = params.get('seed');
     if (graine) {
@@ -44,8 +62,8 @@ export function lireAdresse(recherche = '') {
     return null;
 }
 
-export const lienDuJour = (iso, base = 'https://aytan-sudo.github.io/geo-trouve-tout/') =>
-    `${base}?jour=${iso}`;
+export const lienDuJour = (iso, atlas = CONFIG_DU_JOUR.atlas, base = 'https://aytan-sudo.github.io/geo-trouve-tout/') =>
+    atlas === CONFIG_DU_JOUR.atlas ? `${base}?jour=${iso}` : `${base}?jour=${iso}&carte=${atlas}`;
 
 export function lienLibre(etiquette, config, base = 'https://aytan-sudo.github.io/geo-trouve-tout/') {
     const params = new URLSearchParams({ seed: etiquette });

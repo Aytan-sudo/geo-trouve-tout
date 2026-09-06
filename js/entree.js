@@ -92,11 +92,19 @@ export function gestesCarte(element, carte, { surAppui = null } = {}) {
 // pays le sont aussi. Dix touches par rangee font 440 px de large : la regle
 // des 44 px ne peut pas tenir, l'exemption est declaree sur le conteneur dans
 // index.html — comme le fait le clavier d'iOS lui-meme.
-const RANGEES = ['AZERTYUIOP', 'QSDFGHJKLM', 'WXCVBN'];
+//
+// Le pave de chiffres sert aux numeros de departement. Il porte A et B : sans
+// eux, la Corse-du-Sud (2A) et la Haute-Corse (2B) seraient intapables.
+const DISPOSITIONS = {
+    lettres: { rangees: ['AZERTYUIOP', 'QSDFGHJKLM', 'WXCVBN'], derniere: ['espace'] },
+    chiffres: { rangees: ['12345', '67890'], derniere: ['A', 'B'] }
+};
 
-export function creerClavier(hote, { surLettre, surEffacer, surValider }) {
+export function creerClavier(hote, { surLettre, surEffacer, surValider }, disposition = 'lettres') {
+    const plan = DISPOSITIONS[disposition] ?? DISPOSITIONS.lettres;
     hote.textContent = '';
-    for (const rangee of RANGEES) {
+    hote.dataset.disposition = disposition;
+    for (const rangee of plan.rangees) {
         const ligne = document.createElement('div');
         ligne.className = 'rangee';
         for (const lettre of rangee) {
@@ -110,12 +118,16 @@ export function creerClavier(hote, { surLettre, surEffacer, surValider }) {
         hote.append(ligne);
     }
 
+    // La derniere rangee melange les touches propres a la disposition — l'espace
+    // des lettres, le A et le B des numeros corses — et les deux commandes.
     const derniere = document.createElement('div');
     derniere.className = 'rangee';
+    const propres = plan.derniere.map(libelle => [
+        libelle, libelle === 'espace' ? 'touche large' : 'touche',
+        () => surLettre(libelle === 'espace' ? ' ' : libelle)
+    ]);
     for (const [libelle, classe, action] of [
-        ['espace', 'touche large', () => surLettre(' ')],
-        ['⌫', 'touche', surEffacer],
-        ['Valider', 'touche valider', surValider]
+        ...propres, ['⌫', 'touche', surEffacer], ['Valider', 'touche valider', surValider]
     ]) {
         const touche = document.createElement('button');
         touche.type = 'button';
@@ -141,7 +153,10 @@ export function raccourcis(actions) {
         // quand une saisie est en cours. Sinon « n », « r » et « t » gardent leur
         // role de raccourci : sans ce retour, taper le nom d'un pays relancerait
         // la partie a la lettre « r ».
-        if (touche.length === 1 && /[a-zà-ÿ' -]/i.test(touche) && actions.lettre?.(touche)) return;
+        // Les chiffres servent aussi a repondre — le numero d'un departement —
+        // mais seulement quand aucune proposition ne les reclame : `choisir`
+        // passe en premier, et rend faux quand il n'y a rien a choisir.
+        if (touche.length === 1 && /[a-zà-ÿ0-9' -]/i.test(touche) && actions.lettre?.(touche)) return;
 
         const table = {
             Enter: actions.valider, Backspace: actions.effacer,

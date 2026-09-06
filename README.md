@@ -4,6 +4,10 @@ Un planisphère muet s’affiche, un pays s’allume. Vous le nommez — en choi
 parmi quatre propositions, ou en l’écrivant vous-même. Jouable au doigt, hors
 ligne, sans serveur ni dépendance.
 
+Quatre cartes : **le monde**, **l’Europe**, les **101 départements** et les
+**18 régions** de France. Ce qui vaut pour un pays vaut pour un département —
+le jeu change de carte, jamais de règle.
+
 ## La particularité : le jeu retient ce que vous ne savez pas
 
 Un quiz de géographie qui tire au hasard vous repose éternellement les pays que
@@ -32,9 +36,34 @@ vert sur la carte. En fin de manche, les pays manqués se rejouent d’un bouton
 Pincez pour zoomer, glissez pour vous promener, touchez la mire pour revoir la
 carte entière.
 
-**Défi du jour** — dix pays tirés de la date, les mêmes pour tous, sans serveur :
-le générateur refabrique la manche chez chacun. Série quotidienne, résultat
-partageable en emojis. Le lien porte la date, jamais les réponses.
+**Défi du jour** — dix questions tirées de la date, les mêmes pour tous, sans
+serveur : le générateur refabrique la manche chez chacun. Série quotidienne,
+résultat partageable en emojis. Le lien porte la date, jamais les réponses.
+
+**Chaque carte a son défi**, et un défi ne porte que sur une carte : le monde le
+matin, les départements le soir, mais jamais la Colombie et la Corrèze dans la
+même série. La carte du défi se choisit dans « Nouvelle partie », et voyage dans
+le lien de partage (`?jour=…&carte=…`).
+
+## Les cartes
+
+| Carte | Contenu | Questions propres |
+|---|---|---|
+| **Le monde** | les 197 pays | capitale |
+| **L’Europe** | les 45 pays d’Europe | capitale |
+| **Les départements** | les 101 départements | préfecture, **numéro** |
+| **Les régions** | les 18 régions | chef-lieu |
+
+Les cartes se rangent par famille — *Le monde*, *La France* —, et le menu se
+choisit en deux temps : la famille, puis la carte. Les cinq départements et
+régions d’outre-mer ont chacun leur **cartouche**, à sa propre échelle, comme
+sur une carte d’atlas : les laisser à leur place vraie réduirait la métropole à
+un timbre-poste.
+
+Chaque carte porte ses mots. Le jeu écrit « Quel est ce pays ? », « Quel est ce
+département ? » et « Quelle est cette région ? » avec le même gabarit, rempli
+par le vocabulaire du fichier d’atlas — genre compris. Elle porte aussi ses
+questions : le numéro n’est proposé que là où il existe.
 
 ## Les niveaux
 
@@ -51,12 +80,15 @@ un sac de tirage.
 
 ## Les modes de question
 
-**Nommer** le pays allumé. Le **trouver** sur la carte muette à partir de son
+**Nommer** ce qui est allumé. Le **trouver** sur la carte muette à partir de son
 nom — la carte muette de l’école, et le sens le plus naturel au doigt. Donner sa
-**capitale**. Ou les trois en alternance, sans prévenir.
+**capitale** — sa préfecture pour un département, son chef-lieu pour une région.
+Donner son **numéro**, sur les départements : 35, c’est l’Ille-et-Vilaine, et le
+clavier devient un pavé de chiffres (avec A et B, sans quoi la Corse-du-Sud
+serait intapable). Ou tout cela en alternance, sans prévenir.
 
-À quoi s’ajoutent, dans le menu **Nouvelle partie** : la carte (le monde ou
-l’Europe), le rythme (manche de dix ou marathon à trois vies), et le chrono
+À quoi s’ajoutent, dans le menu **Nouvelle partie** : la carte, le rythme
+(manche de dix ou marathon à trois vies), et le chrono
 (sans, ou dix secondes par question). Chaque combinaison a son propre palmarès :
 un dix sur dix en Découverte ne concourt pas contre un dix sur dix en Expert.
 
@@ -100,6 +132,14 @@ chaque pays peut porter son libellé accessible. Le zoom n’anime pas le `viewB
 mais la transformation d’un groupe — le navigateur la traite comme une
 composition, ce qui reste fluide avec deux cents contours à l’écran.
 
+**Une carte dit ce qu’elle tolère.** Combien elle accepte de perdre sur ses
+bords pour remplir l’écran, et jusqu’où le jeu se rapproche pour poser une
+question. Sur le monde, la forme du pays est la réponse : on peut grossir tant
+qu’on veut. Sur les départements, c’est la *position dans la France* qui répond —
+un rectangle vert au milieu de rectangles verts n’apprend rien. Ces cartes-là
+plafonnent donc leur cadrage, et l’épingle marque les plus petites. Le
+pincement, lui, garde toute sa course.
+
 **Les micro-États.** Nauru fait vingt et un kilomètres carrés : à l’échelle du
 monde, son contour se replie sur un point et disparaît à l’arrondi. Le pays
 serait invisible *et* intouchable. Le script leur pose donc un losange minimal
@@ -131,7 +171,7 @@ js/rendu.js        énoncé, propositions, verdict
 js/entree.js       gestes, clavier maison, raccourcis
 js/hasard.js       le hasard reproductible
 js/stockage.js     préférences, reprise, stats, migrations
-js/variantes.js    tous les réglages, isolés
+js/variantes.js    réglages, sens, mots de chaque carte
 js/themes.js       la liste des thèmes
 js/defi.js         défi du jour et partage
 js/son.js          synthèse WebAudio
@@ -140,16 +180,22 @@ js/ui.js           dialogues et compteurs
 
 ## Les données
 
-- **Natural Earth 1:50m** (domaine public) pour les contours.
+- **Natural Earth 1:50m** (domaine public) pour les contours des pays, et pour
+  les pays voisins qui servent de fond aux cartes françaises.
+- **france-geojson** (Grégoire David, Licence Ouverte) pour les départements et
+  les régions, outre-mer compris.
 - **Les noms français, les capitales, les articles, les alias et les rangs de
   notoriété sont écrits et relus à la main**, dans `scripts/pays.mjs`. Ce n’est
   pas du zèle : le champ `NAME_FR` de Natural Earth est académique, et ses
   capitales sont en réalité les plus grosses villes — on y lit Lagos pour le
   Nigeria, Shanghai pour la Chine, Abidjan pour la Côte d’Ivoire. Dans un jeu de
   géographie, la faute la plus probable n’est pas une erreur de code : c’est une
-  capitale fausse enseignée à un enfant. `tests/test-atlas.mjs` garde ce
-  contenu — identifiants uniques, ancres dans le cadre, contours non vides,
-  aucun alias ambigu, capitales présentes.
+  capitale fausse enseignée à un enfant. Il en va de même pour les 101
+  préfectures et les 18 chefs-lieux, écrits dans `scripts/france.mjs`.
+  `tests/test-atlas.mjs` garde ce contenu — identifiants uniques, ancres dans le
+  cadre, contours non vides, aucun alias ambigu, capitales présentes, numéros
+  uniques, cartouches qui contiennent bien ce qu’ils annoncent, et pas un piège
+  qui doublerait une bonne réponse.
 
 Les frontières suivent Natural Earth et ne sont pas arbitrées ici. Israël et la
 Palestine n’ont pas de capitale déclarée : ils restent jouables sur la carte et
