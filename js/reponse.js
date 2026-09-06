@@ -43,8 +43,14 @@ export function distance(a, b, plafond = 2) {
     return ligne[b.length];
 }
 
-// Tous les libelles qui designent une entite : son nom, ses alias.
-export const libelles = entite => [entite.nom, ...(entite.alias ?? [])];
+// Tous les libelles qui designent une entite : son nom, ses alias, et son
+// numero quand elle en a un. « 83 » designe le Var aussi surement que « Var » —
+// et puisque le jeu affiche « Var (83) », refuser le numero a l'ecrit serait
+// refuser ce qu'il vient d'apprendre. Les numeros sont uniques par carte, un
+// test le garde ; « 84 » repondu pour le Var reste donc une confusion, pas une
+// faute de frappe.
+export const libelles = entite =>
+    [entite.nom, ...(entite.alias ?? []), ...(entite.numero ? [entite.numero] : [])];
 
 // La forme compacte, espaces retires. « cote d ivoire » et « cotedivoire »
 // deviennent la meme chose, ce qui evite d'exiger de deviner ou tombent les

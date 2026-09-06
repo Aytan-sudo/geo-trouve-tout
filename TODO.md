@@ -3,10 +3,28 @@
 Journal de bord du jeu. Ce qui est fait est en haut, ce qui reste en bas, et
 chaque entrée dit assez pour être reprise dans six mois sans relire le code.
 
-État au 7 septembre 2026 : **1.1.0**, 438 vérifications vertes, vérificateur iOS
+État au 7 septembre 2026 : **1.1.1**, 453 vérifications vertes, vérificateur iOS
 au vert sur iPhone 15 et iPhone SE.
 
 ---
+
+## 1.1.1 — le numéro dans le nom
+
+Un département se nomme avec son numéro. Les propositions, les corrections, la
+liste des ratés et celle des pays à revoir disent désormais **« Var (83) »** —
+c'est ainsi qu'on les nomme en France, et l'afficher partout l'apprend sans
+jamais avoir à le demander.
+
+- `nomAffiche()` (dans `js/variantes.js`) est le seul endroit qui décide, et
+  les cartes sans numéro ne changent pas d'un caractère.
+- La question du **numéro** reste un exercice à part : ses propositions sont des
+  numéros nus, et celles des préfectures des villes. Coller un numéro à un
+  numéro n'aurait aucun sens, et le faire sur la question du numéro donnerait la
+  réponse.
+- À l'écrit, **« 83 » vaut « Var »** : le numéro rejoint les libellés qui
+  désignent une entité (`js/reponse.js`). Ce que le jeu affiche, il l'accepte.
+  « 84 » reste une confusion, pas une faute de frappe — les numéros sont uniques
+  et un test le garde.
 
 ## 1.1.0 — La France, et une carte n'est plus un cas particulier
 
@@ -196,6 +214,11 @@ iPhone — simulateur ou téléphone :
 - ~~`COUVERTURE_MAX` dupliqué entre `js/carte.js` et `css/interface.css`~~ :
   réglé en 1.1.0. Chaque atlas porte sa `couverture`, `js/app.js` la pose en
   variable CSS, et les deux lectures viennent de la même source.
+- **L'option « Aide à la saisie » ne fait rien aujourd'hui.** Elle propose les
+  noms qui commencent par ce qu'on tape — mais la saisie n'existe qu'en Expert,
+  et l'aide s'y désactive volontairement. Elle attend donc un mode écrit à un
+  niveau plus doux. À trancher : l'ouvrir à l'Expert (qui deviendrait beaucoup
+  plus facile), ou la retirer des Options tant qu'aucun mode ne l'utilise.
 - **Le mode « alterne »** n'a toujours pas été joué longuement par un humain :
   vérifier qu'enchaîner localiser, nommer et numéro ne désoriente pas. Le bug
   qu'il cachait — une question sans réponse sur les pays sans capitale — est

@@ -69,6 +69,30 @@ for (const id of ['monde-pays', 'europe-pays', 'france-departements', 'france-re
     check(`${carte.nom} : aucune ne passe pour l’autre`, fuites.length === 0, fuites.join(', '));
 }
 
+console.log('\nLe numero d’un departement');
+// Le jeu affiche « Var (83) » : ce qu'il montre, il doit l'accepter. Mais le
+// numero voisin reste une confusion — 83 et 84 sont a un caractere.
+const departements = preparer('france-departements');
+const indexDep = indexer(departements.entites);
+const varr = departements.parId.get('83');
+for (const [saisie, attendu] of [['Var', 'juste'], ['le Var', 'juste'], ['83', 'juste'],
+    ['84', 'confusion'], ['Vaucluse', 'confusion']]) {
+    check(`« ${saisie} » pour le Var : ${attendu}`,
+        verifier(saisie, varr, { index: indexDep }).verdict === attendu,
+        `→ ${verifier(saisie, varr, { index: indexDep }).verdict}`);
+}
+check('« 2A » repond pour la Corse-du-Sud',
+    verifier('2A', departements.parId.get('2A'), { index: indexDep }).verdict === 'juste');
+check('« 2B » ne passe pas pour la Corse-du-Sud',
+    verifier('2B', departements.parId.get('2A'), { index: indexDep }).verdict === 'confusion');
+check('un numero ne designe qu’un departement',
+    new Set(departements.entites.map(e => e.numero)).size === departements.entites.length);
+// Un numero ne doit ressembler a aucun nom : sans quoi l'index se marcherait
+// sur les pieds.
+const commeUnNom = departements.entites.filter(e => departements.entites
+    .some(autre => autre.id !== e.id && normaliser(autre.nom) === normaliser(e.numero)));
+check('aucun numero ne double un nom', commeUnNom.length === 0, commeUnNom.map(e => e.nom).join(','));
+
 console.log('\nCe qui compte comme reussi');
 check('juste compte', compteJuste('juste'));
 check('presque compte aussi', compteJuste('presque'));

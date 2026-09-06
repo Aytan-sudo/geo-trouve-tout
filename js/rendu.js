@@ -5,6 +5,7 @@
 // propre module — ici on ne s'occupe que de ce qui l'entoure.
 
 import { suggestions } from './reponse.js';
+import { nomAffiche } from './variantes.js';
 
 const $ = id => document.getElementById(id);
 
@@ -112,7 +113,7 @@ export function creerRendu({ surChoix, surSuggestion }) {
             for (const entite of suggestions(texte, entites)) {
                 const bouton = document.createElement('button');
                 bouton.type = 'button';
-                bouton.textContent = entite.nom;
+                bouton.textContent = nomAffiche(entite);
                 bouton.addEventListener('click', () => surSuggestion(entite.nom));
                 const item = document.createElement('li');
                 item.append(bouton);
@@ -158,7 +159,7 @@ export function creerRendu({ surChoix, surSuggestion }) {
             for (const entite of entites) {
                 const bouton = document.createElement('button');
                 bouton.type = 'button';
-                bouton.textContent = entite.nom;
+                bouton.textContent = nomAffiche(entite);
                 bouton.addEventListener('click', () => surTouche(entite.id));
                 const item = document.createElement('li');
                 item.append(bouton);
@@ -178,12 +179,13 @@ export function creerRendu({ surChoix, surSuggestion }) {
     return api;
 }
 
-// « la France », « l'Italie », « les Pays-Bas », « Cuba ». L'article est dans
-// les donnees parce qu'aucune regle ne le devine : le Danemark et la Suede sont
-// voisins et de genres differents.
+// « la France », « l'Italie », « les Pays-Bas », « Cuba », « le Var (83) ».
+// L'article est dans les donnees parce qu'aucune regle ne le devine : le
+// Danemark et la Suede sont voisins et de genres differents.
 export function avecArticle(entite) {
     if (!entite) return '';
+    const nom = nomAffiche(entite);
     const article = entite.article ?? '';
-    if (!article) return entite.nom;
-    return article.endsWith("'") ? `${article}${entite.nom}` : `${article} ${entite.nom}`;
+    if (!article) return nom;
+    return article.endsWith("'") ? `${article}${nom}` : `${article} ${nom}`;
 }

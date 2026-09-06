@@ -12,7 +12,7 @@
 // attendu, `propositions` les boutons a offrir — vides quand il faut ecrire ou
 // toucher la carte.
 
-import { NIVEAUX, SENS, texte, sensAlternes } from './variantes.js';
+import { NIVEAUX, SENS, texte, sensAlternes, nomAffiche } from './variantes.js';
 
 // Le sac de tirage : ce qui est jouable a ce niveau, dans ce sens.
 //
@@ -84,10 +84,13 @@ export function choisirCibles(sac, nombre, hasard, poids = null) {
 
 // Ce que l'entite doit repondre dans ce sens : son nom, son chef-lieu, son
 // numero. Une seule table, et les sens s'ajoutent sans toucher au reste.
+//
+// Le nom se donne affiche — « Var (83) ». La reponse ecrite, elle, reste
+// tolerante : js/reponse.js accepte « Var » comme « 83 ».
 const reponseDe = (entite, sens) =>
     sens === 'capitale' ? entite.capitale
         : sens === 'numero' ? entite.numero
-            : entite.nom;
+            : nomAffiche(entite);
 
 export function fabriquer(cible, sac, { niveau, sens }, hasard, { mots, alternes } = {}) {
     const reglage = NIVEAUX[niveau];

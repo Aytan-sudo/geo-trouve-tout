@@ -22,6 +22,13 @@ export const MOTS = {
 
 const majuscule = mot => mot.charAt(0).toUpperCase() + mot.slice(1);
 
+// « Var (83) ». Dans l'usage francais, le numero fait partie du nom d'un
+// departement : on dit « le 83 » comme on dit « le Var ». L'afficher partout ou
+// le nom apparait — propositions, corrections, listes a revoir — l'apprend sans
+// jamais avoir a le demander. Les cartes sans numero ne changent pas.
+export const nomAffiche = entite =>
+    entite?.numero ? `${entite.nom} (${entite.numero})` : (entite?.nom ?? '');
+
 // Remplit un gabarit. `{entite}` prend le mot tel quel, `{Entite}` le prend
 // avec une majuscule — de quoi commencer une phrase sans dedoubler la table.
 export const texte = (gabarit, mots = {}) => String(gabarit ?? '').replace(/\{(\w+)\}/g, (_, clef) => {

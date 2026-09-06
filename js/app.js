@@ -11,7 +11,7 @@ import { creerPartie, restaurer } from './partie.js';
 import { composerManche, sacDe, fabriquer } from './questions.js';
 import { creerMemoire, jourDe } from './memoire.js';
 import { verifier, indexer, normaliser } from './reponse.js';
-import { NIVEAUX, CHRONOS, RYTHMES, DEFAUTS, signature, sensDe, sensAlternes, texte as motsDe } from './variantes.js';
+import { NIVEAUX, CHRONOS, RYTHMES, DEFAUTS, signature, sensDe, sensAlternes, nomAffiche, texte as motsDe } from './variantes.js';
 import { preferences, partie as partieRangee, souvenirs, stats, toutEffacer } from './stockage.js';
 import { appliquer as appliquerTheme, themeSuivant } from './themes.js';
 import { son, vibrer, preparerSon, activerSon } from './son.js';
@@ -23,7 +23,7 @@ import {
 } from './defi.js';
 
 const $ = id => document.getElementById(id);
-const VERSION = '1.1.0';
+const VERSION = '1.1.1';
 
 const etat = {
     reglages: preferences.lire(),
@@ -82,7 +82,7 @@ function juger(question, donnee) {
 const reponseAttendue = (question, entite) =>
     question.sens === 'capitale' ? entite.capitale
         : question.sens === 'numero' ? entite.numero
-            : entite.nom;
+            : nomAffiche(entite);
 
 function nouvellePartie({ mode = 'libre', jour = null, graine = null, cibles = null, reprise = null } = {}) {
     arreterMinuterie();
@@ -288,7 +288,7 @@ function terminer() {
     ui.montrerFin({
         bilan,
         config,
-        nomsRates: bilan.rates.map(id => etat.atlas.parId.get(id)?.nom ?? id),
+        nomsRates: bilan.rates.map(id => nomAffiche(etat.atlas.parId.get(id)) || id),
         defi: etat.mode === 'jour' ? etat.jour : null
     });
 }
@@ -456,10 +456,8 @@ function annoncerPays(id) {
     const entite = etat.atlas.parId.get(id);
     if (!entite) return;
     const niveau = { acquis: 'acquis', hesitant: 'à revoir', inconnu: 'jamais vu' }[etat.memoire.niveauDe(id)];
-    rendu.elements.enonce.textContent = [
-        entite.numero ? `${entite.numero} · ${entite.nom}` : entite.nom,
-        entite.capitale, `— ${niveau}`
-    ].filter(Boolean).join(' · ').replace(' · —', ' —');
+    rendu.elements.enonce.textContent = [nomAffiche(entite), entite.capitale, `— ${niveau}`]
+        .filter(Boolean).join(' · ').replace(' · —', ' —');
     etat.carte.cadrerSur(id);
 }
 

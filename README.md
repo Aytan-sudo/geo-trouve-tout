@@ -60,6 +60,11 @@ régions d’outre-mer ont chacun leur **cartouche**, à sa propre échelle, com
 sur une carte d’atlas : les laisser à leur place vraie réduirait la métropole à
 un timbre-poste.
 
+Un département se nomme avec son numéro : les propositions, les corrections et
+les listes disent **« Var (83) »**. C’est ainsi qu’on les nomme en France, et
+l’afficher partout l’apprend sans jamais avoir à le demander — mais la question
+du numéro reste un exercice à part, et à l’écrit « 83 » vaut « Var ».
+
 Chaque carte porte ses mots. Le jeu écrit « Quel est ce pays ? », « Quel est ce
 département ? » et « Quelle est cette région ? » avec le même gabarit, rempli
 par le vocabulaire du fichier d’atlas — genre compris. Elle porte aussi ses
@@ -107,6 +112,7 @@ La correction est faite pour des enfants sans être laxiste :
 - accents, majuscules, traits d’union, apostrophes et articles sont ignorés —
   `etats unis` vaut `États-Unis`, `cote divoire` vaut `Côte d’Ivoire` ;
 - les alias déclarés passent : `USA`, `Myanmar`, `RDC`, `Swaziland` ;
+- le numéro d’un département répond pour son nom : `83` vaut `Var` ;
 - une lettre de travers passe aussi, et l’orthographe juste s’affiche ;
 - **mais** écrire le nom d’un autre pays reste une erreur, même à une lettre
   près. L’Iran n’est pas l’Irak, la Gambie n’est pas la Zambie, l’Islande n’est

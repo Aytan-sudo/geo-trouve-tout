@@ -3,7 +3,7 @@
 import { counter, preparer } from './harness.mjs';
 import { creerHasard, graineDepuisTexte } from '../js/hasard.js';
 import { composerManche, sacDe, fabriquer, distracteurs, choisirCibles } from '../js/questions.js';
-import { NIVEAUX, sensDe } from '../js/variantes.js';
+import { NIVEAUX, sensDe, nomAffiche } from '../js/variantes.js';
 
 const { check, report } = counter();
 const atlas = preparer('monde-pays');
@@ -128,6 +128,31 @@ check('une region demande son chef-lieu', chefLieu.enonce === 'Quel est son chef
 check('l’enonce d’une region s’accorde',
     fabriquer(bretagne, [], { niveau: 'expert', sens: 'nommer' }, graine(), { mots: regions.mots })
         .enonce === 'Quelle est cette région ?');
+
+console.log('\nLe numero dans le nom');
+// « Var (83) » : le numero s'affiche avec le nom, mais seulement la ou c'est
+// un nom qu'on demande. Les propositions de capitales sont des villes, celles
+// de numeros sont des numeros — y coller un numero de plus n'aurait aucun sens.
+const varr = departements.parId.get('83');
+check('le nom affiche porte le numero', nomAffiche(varr) === 'Var (83)');
+check('un pays n’a pas de numero a afficher', nomAffiche(atlas.parId.get('FRA')) === 'France');
+check('nomAffiche supporte l’absence d’entite', nomAffiche(undefined) === '');
+
+const nomme = fabriquer(varr, sacDe(departements, { niveau: 'voyageur', sens: 'nommer' }),
+    { niveau: 'voyageur', sens: 'nommer' }, graine(), { mots: departements.mots });
+check('« nommer » propose des noms numerotes',
+    nomme.reponse === 'Var (83)' && nomme.propositions.every(p => /\(\d{2,3}|\(2[AB]\)/.test(p)),
+    nomme.propositions.join(' | '));
+const toulon = fabriquer(varr, sacDe(departements, { niveau: 'voyageur', sens: 'capitale' }),
+    { niveau: 'voyageur', sens: 'capitale' }, graine(), { mots: departements.mots });
+check('« préfecture » propose des villes, sans numero',
+    toulon.reponse === 'Toulon' && toulon.propositions.every(p => !p.includes('(')),
+    toulon.propositions.join(' | '));
+const numero83 = fabriquer(varr, sacDe(departements, { niveau: 'voyageur', sens: 'numero' }),
+    { niveau: 'voyageur', sens: 'numero' }, graine(), { mots: departements.mots });
+check('« numero » propose des numeros nus',
+    numero83.reponse === '83' && numero83.propositions.every(p => !p.includes('(')),
+    numero83.propositions.join(' | '));
 
 console.log('\nUne manche ne melange jamais deux cartes');
 // C'est la regle du defi du jour : une categorie, et une seule. Le sac vient
