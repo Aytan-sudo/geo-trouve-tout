@@ -55,10 +55,15 @@ un sac de tirage.
 nom — la carte muette de l’école, et le sens le plus naturel au doigt. Donner sa
 **capitale**. Ou les trois en alternance, sans prévenir.
 
-À quoi s’ajoutent, dans les Options : la carte (le monde ou l’Europe), le rythme
-(manche de dix ou marathon à trois vies), et le chrono (sans, ou dix secondes
-par question). Chaque combinaison a son propre palmarès : un dix sur dix en
-Découverte ne concourt pas contre un dix sur dix en Expert.
+À quoi s’ajoutent, dans le menu **Nouvelle partie** : la carte (le monde ou
+l’Europe), le rythme (manche de dix ou marathon à trois vies), et le chrono
+(sans, ou dix secondes par question). Chaque combinaison a son propre palmarès :
+un dix sur dix en Découverte ne concourt pas contre un dix sur dix en Expert.
+
+Deux menus, deux rôles. **Nouvelle partie** (bouton « Partie libre », en bas)
+choisit ce qu’on lance — défi du jour ou partie libre, et sous quels réglages.
+Les **Options** règlent le jeu lui-même : thème, sons, vibration, aides. Régler
+son niveau ne demande donc plus de traverser un écran d’options.
 
 ## Écrire un nom
 

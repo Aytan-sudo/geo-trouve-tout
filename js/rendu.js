@@ -14,7 +14,8 @@ export function creerRendu({ surChoix, surSuggestion }) {
         enonce: $('enonce'), choix: $('choix'), saisie: $('saisie'),
         texte: $('saisie-texte'), suggestions: $('suggestions'), consigne: $('consigne'),
         indice: $('indice'), verdict: $('verdict'), verdictTitre: $('verdict-titre'),
-        verdictDetail: $('verdict-detail'), annonce: $('annonce'), mode: $('titre-mode')
+        verdictDetail: $('verdict-detail'), annonce: $('annonce'), mode: $('titre-mode'),
+        aRevoir: $('a-revoir')
     };
 
     let saisieCourante = '';
@@ -59,6 +60,10 @@ export function creerRendu({ surChoix, surSuggestion }) {
         question(question, entite, { saisieActive, aideSaisie, entites }) {
             api.verdict(null);
             saisieCourante = '';
+            // La liste de « Ma carte » n'a rien a faire sous une question : on
+            // la retire ici plutot qu'a la sortie de cet ecran-la, pour qu'un
+            // chemin oublie ne puisse pas la laisser derriere lui.
+            api.aRevoir([]);
             elements.indice.hidden = !question.aide;
             if (question.aide) elements.indice.textContent = question.aide;
 
@@ -146,8 +151,8 @@ export function creerRendu({ surChoix, surSuggestion }) {
         // La liste de ce qui reste a travailler. Elle a sa place sur l'ecran
         // « Ma carte » : sans elle, la carte dit qu'il reste du chemin sans
         // jamais dire lequel. Chaque pastille ramene la carte sur son pays.
-        aRevoir(entites, surTouche) {
-            const liste = $('a-revoir');
+        aRevoir(entites, surTouche = () => {}) {
+            const liste = elements.aRevoir;
             liste.textContent = '';
             liste.hidden = entites.length === 0;
             for (const entite of entites) {
@@ -166,7 +171,7 @@ export function creerRendu({ surChoix, surSuggestion }) {
             elements.saisie.hidden = true;
             elements.consigne.hidden = true;
             elements.indice.hidden = true;
-            $('a-revoir').hidden = true;
+            elements.aRevoir.hidden = true;
         }
     };
 

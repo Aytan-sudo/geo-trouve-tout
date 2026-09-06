@@ -90,10 +90,25 @@ export function creerCarte(hote, atlas, { surTouche = null } = {}) {
         dy = Math.min(atlas.hauteur * marge, Math.max(-limiteY, dy));
     };
 
+    // Un pixel d'ecran, en unites de carte : le rapport que
+    // preserveAspectRatio="meet" applique au viewBox.
+    const facteurEcran = () => {
+        const boite = svg.getBoundingClientRect();
+        if (!boite.width || !boite.height) return 1;
+        return Math.min(boite.width / atlas.largeur, boite.height / atlas.hauteur) || 1;
+    };
+
     function placerMarqueurs() {
+        if (!epingles.length) return;
+        // Les rayons des epingles sont ecrits en pixels d'ecran ; le groupe
+        // compense donc l'echelle du viewBox. Sans cette compensation, une
+        // epingle de rayon 7 sur un planisphere de 4000 de large mesure un
+        // pixel et demi sur un telephone — et le micro-Etat qu'elle designe
+        // reste introuvable, ce qu'elle etait justement la pour eviter.
+        const taille = 1 / facteurEcran();
         for (const { noeud, ancre } of epingles) {
             noeud.setAttribute('transform',
-                `translate(${ancre[0] * echelle + dx} ${ancre[1] * echelle + dy})`);
+                `translate(${ancre[0] * echelle + dx} ${ancre[1] * echelle + dy}) scale(${taille})`);
         }
     }
 
@@ -137,8 +152,9 @@ export function creerCarte(hote, atlas, { surTouche = null } = {}) {
 
         epingler(entite, classe = 'cible') {
             const groupe = balise('g', { class: `epingle ${classe}` });
-            groupe.append(balise('circle', { class: 'epingle-halo', r: 26 }));
-            groupe.append(balise('circle', { class: 'epingle-point', r: 7 }));
+            // En pixels d'ecran : placerMarqueurs() compense l'echelle du viewBox.
+            groupe.append(balise('circle', { class: 'epingle-halo', r: 20 }));
+            groupe.append(balise('circle', { class: 'epingle-point', r: 6 }));
             marqueurs.append(groupe);
             epingles.push({ noeud: groupe, ancre: entite.ancre });
             placerMarqueurs();
@@ -235,8 +251,7 @@ export function creerCarte(hote, atlas, { surTouche = null } = {}) {
         },
 
         deplacer(deltaX, deltaY) {
-            const boite = svg.getBoundingClientRect();
-            const facteur = Math.min(boite.width / atlas.largeur, boite.height / atlas.hauteur) || 1;
+            const facteur = facteurEcran();
             dx += deltaX / facteur; dy += deltaY / facteur;
             brider(); svg.classList.add('sans-transition'); appliquer();
         },

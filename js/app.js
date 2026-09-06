@@ -23,7 +23,7 @@ import {
 } from './defi.js';
 
 const $ = id => document.getElementById(id);
-const VERSION = '1.0.0';
+const VERSION = '1.0.1';
 
 const etat = {
     reglages: preferences.lire(),
@@ -78,7 +78,11 @@ function nouvellePartie({ mode = 'libre', jour = null, graine = null, cibles = n
     arreterMinuterie();
     etat.mode = mode;
     etat.jour = jour ?? dateISO();
-    const config = mode === 'jour' ? { ...CONFIG_DU_JOUR } : configCourante();
+    // La configuration dit la carte reellement en jeu, pas celle qu'un reglage
+    // souhaite : c'est elle qui signe le palmares.
+    const config = mode === 'jour'
+        ? { ...CONFIG_DU_JOUR, atlas: etat.atlas.id }
+        : { ...configCourante(), atlas: etat.atlas.id };
     etat.graine = graine ?? graineDepuisTexte(`libre:${Date.now()}`);
 
     const hasard = creerHasard(etat.graine);
@@ -123,6 +127,21 @@ function nouvellePartie({ mode = 'libre', jour = null, graine = null, cibles = n
     afficherQuestion();
     demarrerMinuterie();
     ranger();
+}
+
+// Une partie se joue sur la carte de son mode. Le defi du jour est le monde,
+// toujours — sans cette garantie, un joueur qui a choisi l'Europe dans ses
+// reglages jouerait un « defi du jour » compose en Europe, donc different de
+// celui de tout le monde, et range au palmares sous le nom du monde.
+//
+// Rejouer les rates fait exception : ces pays viennent de la carte en cours, et
+// c'est sur elle qu'on les revoit.
+async function lancer(options = {}) {
+    const voulu = options.cibles
+        ? etat.atlas.id
+        : (options.mode === 'jour' ? CONFIG_DU_JOUR.atlas : configCourante().atlas);
+    if (voulu !== etat.atlas?.id) await chargerAtlas(voulu);
+    nouvellePartie(options);
 }
 
 function afficherQuestion() {
@@ -313,6 +332,10 @@ function quitterProgression() {
     delete document.body.dataset.ecran;
     etat.carte.decolorier();
     rendu.legende(false);
+    // Les pastilles de pays restaient sous la partie suivante, ou elles
+    // debordaient de l'ecran : elles appartiennent a cet ecran-la, elles s'en
+    // vont avec lui.
+    rendu.aRevoir([]);
 }
 
 function marquerNavigation() {
@@ -368,11 +391,18 @@ function annoncerPays(id) {
     etat.carte.cadrerSur(id);
 }
 
+// Le bouton de la barre dit ce qu'il fait : « Son » quand il joue, « Muet »
+// quand il se tait. Un glyphe barre tout seul se lit mal a la volee.
+function marquerSon(actif) {
+    $('son-basculer').setAttribute('aria-pressed', String(actif));
+    $('etiquette-son').textContent = actif ? 'Son' : 'Muet';
+    activerSon(actif);
+}
+
 async function demarrer() {
     appliquerTheme(etat.reglages.theme);
     document.documentElement.dataset.signes = etat.reglages.signes ? '1' : '0';
-    activerSon(etat.reglages.sons !== false);
-    $('son-basculer').setAttribute('aria-pressed', String(etat.reglages.sons !== false));
+    marquerSon(etat.reglages.sons !== false);
     $('version').textContent = `Géo Trouve-Tout ${VERSION}`;
     ui.brancherDialogues();
 
@@ -384,7 +414,7 @@ async function demarrer() {
     brancherBoutons();
 
     if (adresse?.mode === 'jour') {
-        nouvellePartie({ mode: 'jour', jour: adresse.jour, graine: adresse.graine });
+        await lancer({ mode: 'jour', jour: adresse.jour, graine: adresse.graine });
     } else if (adresse?.mode === 'libre') {
         etat.reglages = { ...etat.reglages, ...adresse.config };
         nouvellePartie({ mode: 'libre', graine: adresse.graine });
@@ -402,63 +432,70 @@ async function demarrer() {
             });
         } else {
             partieRangee.effacer();
-            nouvellePartie({ mode: 'jour', jour: dateISO(), graine: graineDuJour(dateISO()) });
+            await lancer({ mode: 'jour', jour: dateISO(), graine: graineDuJour(dateISO()) });
         }
     }
 }
 
 function brancherBoutons() {
+    // Un seul chemin pour changer un reglage, d'ou qu'il vienne — une case des
+    // Options, un menu du depart, un bouton de la barre. Il range, il applique,
+    // et il repeint les deux menus pour qu'aucun ne mente sur l'etat courant.
+    const appliquerReglages = valeurs => {
+        etat.reglages = { ...etat.reglages, ...valeurs };
+        preferences.ecrire(valeurs);
+        if (valeurs.theme) appliquerTheme(valeurs.theme);
+        if ('signes' in valeurs) document.documentElement.dataset.signes = valeurs.signes ? '1' : '0';
+        if ('sons' in valeurs) marquerSon(valeurs.sons);
+        // La carte, elle, ne change pas sous la partie en cours : elle est
+        // chargee au depart de la suivante. Changer de carte en plein jeu
+        // laissait le planisphere d'Europe sous une question sur la Colombie.
+        const vue = { ...etat.reglages, ...configCourante() };
+        options.peindre(vue);
+        menuPartie.peindre(vue);
+    };
+
+    const vueDesReglages = () => ({ ...etat.reglages, ...configCourante() });
+
     const options = ui.creerOptions({
-        preferences: etat.reglages,
-        surChangement: async valeurs => {
-            etat.reglages = { ...etat.reglages, ...valeurs };
-            preferences.ecrire(valeurs);
-            if (valeurs.theme) appliquerTheme(valeurs.theme);
-            if ('signes' in valeurs) document.documentElement.dataset.signes = valeurs.signes ? '1' : '0';
-            if ('sons' in valeurs) {
-                activerSon(valeurs.sons);
-                $('son-basculer').setAttribute('aria-pressed', String(valeurs.sons));
-            }
-            if (valeurs.atlas && valeurs.atlas !== etat.atlas.id) await chargerAtlas(valeurs.atlas);
-            options.montrer({ ...etat.reglages, ...configCourante() });
-        },
-        surJouer: () => nouvellePartie({ mode: 'libre' })
+        surChangement: appliquerReglages,
+        surPartie: () => menuPartie.montrer(vueDesReglages(), etat.mode === 'jour' ? 'jour' : 'libre')
     });
 
-    $('options-ouvrir').addEventListener('click', () => options.montrer({ ...etat.reglages, ...configCourante() }));
+    const menuPartie = ui.creerMenuPartie({
+        surChangement: appliquerReglages,
+        surCommencer: mode => mode === 'jour'
+            ? lancer({ mode: 'jour', jour: dateISO(), graine: graineDuJour(dateISO()) })
+            : lancer({ mode: 'libre' })
+    });
+
+    $('options-ouvrir').addEventListener('click', () => options.montrer(vueDesReglages()));
     $('aide-ouvrir').addEventListener('click', () => ui.ouvrir($('dialogue-aide')));
     $('stats-ouvrir').addEventListener('click', () => {
         const compte = etat.memoire.resume(etat.atlas.entites);
         ui.montrerStats({ stats: stats.lire(), acquis: compte.acquis, total: compte.total });
     });
-    $('theme-basculer').addEventListener('click', () => {
-        const theme = themeSuivant(etat.reglages.theme).id;
-        etat.reglages.theme = theme;
-        preferences.ecrire({ theme });
-        appliquerTheme(theme);
-    });
-    $('son-basculer').addEventListener('click', evenement => {
-        const actif = evenement.currentTarget.getAttribute('aria-pressed') !== 'true';
-        evenement.currentTarget.setAttribute('aria-pressed', String(actif));
-        etat.reglages.sons = actif;
-        preferences.ecrire({ sons: actif });
-        activerSon(actif);
-    });
+    $('theme-basculer').addEventListener('click',
+        () => appliquerReglages({ theme: themeSuivant(etat.reglages.theme).id }));
+    $('son-basculer').addEventListener('click', evenement =>
+        appliquerReglages({ sons: evenement.currentTarget.getAttribute('aria-pressed') !== 'true' }));
 
     $('action-recentrer').addEventListener('click', () => etat.carte.recentrer());
     $('verdict-suivant').addEventListener('click', suite);
-    $('nav-jour').addEventListener('click', () => nouvellePartie({ mode: 'jour', jour: dateISO(), graine: graineDuJour(dateISO()) }));
-    $('nav-libre').addEventListener('click', () => nouvellePartie({ mode: 'libre' }));
+    $('nav-jour').addEventListener('click', () => lancer({ mode: 'jour', jour: dateISO(), graine: graineDuJour(dateISO()) }));
+    // On ne lance plus une partie libre en aveugle : le menu montre d'abord ce
+    // qu'elle sera, et c'est lui qui la commence.
+    $('nav-libre').addEventListener('click', () => menuPartie.montrer(vueDesReglages(), 'libre'));
     $('nav-progression').addEventListener('click', montrerProgression);
 
     $('fin-rejouer').addEventListener('click', () => {
         $('dialogue-fin').close();
-        nouvellePartie({ mode: etat.mode === 'jour' ? 'libre' : etat.mode });
+        lancer({ mode: etat.mode === 'jour' ? 'libre' : etat.mode });
     });
     $('fin-rejouer-rates').addEventListener('click', () => {
         const rates = etat.partie.bilan().rates;
         $('dialogue-fin').close();
-        nouvellePartie({ mode: 'libre', cibles: rates });
+        lancer({ mode: 'libre', cibles: rates });
     });
     $('fin-partager').addEventListener('click', () => {
         const bilan = etat.partie.bilan();
@@ -500,8 +537,8 @@ function brancherBoutons() {
             if (!rendu.elements.saisie.hidden && rendu.texteSaisi) repondre(rendu.texteSaisi);
         },
         effacer: () => { if (!rendu.elements.saisie.hidden) saisir(rendu.texteSaisi.slice(0, -1)); },
-        nouvelle: () => nouvellePartie({ mode: 'libre' }),
-        relancer: () => nouvellePartie({ mode: etat.mode, jour: etat.jour, graine: etat.graine }),
+        nouvelle: () => lancer({ mode: 'libre' }),
+        relancer: () => lancer({ mode: etat.mode, jour: etat.jour, graine: etat.graine }),
         theme: () => $('theme-basculer').click(),
         aide: () => ui.ouvrir($('dialogue-aide')),
         echapper: () => { for (const d of document.querySelectorAll('dialog[open]')) d.close(); }

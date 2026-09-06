@@ -65,17 +65,25 @@
 
 .epingle-halo {
     fill: var(--cible-halo);
-    animation: battement 1.9s ease-out infinite;
+    /* Sans `transform-box`, un element SVG prend pour repere la boite du
+     * viewBox : « center » designe alors le centre de la carte, a des milliers
+     * d'unites de la, et le halo ne bat pas — il traverse l'ecran en diagonale
+     * a chaque question. C'est la valeur par defaut du navigateur, elle ne leve
+     * aucune erreur, et elle ne se voit qu'a l'oeil. */
+    transform-box: fill-box;
     transform-origin: center;
+    /* Un seul battement, qui s'ouvre et se pose. Le halo perpetuel attirait
+     * l'oeil pendant toute la question, alors qu'on regarde la carte. */
+    animation: battement .9s cubic-bezier(.22, .61, .36, 1) 1;
 }
 
 .epingle.juste .epingle-point { fill: var(--juste); }
 .epingle.faux .epingle-point { fill: var(--faux); }
 
 @keyframes battement {
-    0% { transform: scale(.55); opacity: .9; }
-    70% { transform: scale(1.5); opacity: 0; }
-    100% { transform: scale(1.5); opacity: 0; }
+    from { transform: scale(.3); opacity: 0; }
+    60% { opacity: 1; }
+    to { transform: scale(1); opacity: 1; }
 }
 
 /* Ma carte : le planisphere prend la couleur de ce que le joueur sait. */

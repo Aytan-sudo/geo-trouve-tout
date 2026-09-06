@@ -42,26 +42,57 @@ body {
     flex: 0 0 auto;
 }
 
-.icone {
+.barre .titre { margin-right: 2px; }
+
+/* Les commandes de la barre sont des boutons, pas des signes poses la : une
+ * surface, un contour, et surtout un nom. Un glyphe seul se lit comme une
+ * decoration — on ne pense pas a le toucher. */
+.bouton-barre {
     min-width: 44px;
     height: 44px;
+    padding: 3px 5px;
     display: inline-flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    border: 0;
+    gap: 1px;
+    border: 1px solid var(--bord);
     border-radius: 12px;
-    background: transparent;
-    color: var(--texte-doux);
-    font-size: 19px;
+    background: var(--surface);
+    color: var(--texte);
+    font: inherit;
     cursor: pointer;
     touch-action: manipulation;
 }
 
-.icone:active { background: var(--bord); }
-.icone[aria-pressed="false"] { opacity: .38; }
+.bouton-barre:active { background: var(--bord); }
+
+.bouton-barre .glyphe { font-size: 15px; line-height: 1; }
+
+.bouton-barre .etiquette {
+    font-size: 9px;
+    line-height: 1.1;
+    color: var(--texte-doux);
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    white-space: nowrap;
+}
+
+/* Coupe : le bouton reste lisible, mais on voit qu'il est relache. */
+.bouton-barre[aria-pressed="false"] { opacity: .6; }
+.bouton-barre[aria-pressed="false"] .glyphe { text-decoration: line-through; }
 
 .titre {
     flex: 1;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    cursor: pointer;
+    touch-action: manipulation;
+    font: inherit;
     /* Sans cette largeur minimale nulle, un titre trop long pour la barre ne
      * se laisse pas retrecir : il passe a la ligne, deborde de ses 44 px de
      * haut et se fait couper. Le petit ecran est le cas dur. */
@@ -482,8 +513,14 @@ body[data-ecran="progression"] .reponse { justify-content: flex-start; }
 .navigation button strong { font-size: 13.5px; }
 .navigation button[aria-current="true"] { background: var(--surface); border-color: var(--accent); }
 
+/* L'annonce des lecteurs d'ecran. Sans coordonnees, une boite absolue reste a
+ * sa place dans le flux : celle-ci se posait sous une page deja haute de cent
+ * pour cent et ajoutait dix-sept pixels de defilement a un ecran qui n'est pas
+ * cense defiler. */
 .annonce {
     position: absolute;
+    top: 0;
+    left: 0;
     width: 1px;
     height: 1px;
     overflow: hidden;
@@ -611,6 +648,67 @@ select {
     color: var(--texte-doux);
 }
 
+/* Le renvoi des Options vers le menu du depart, et les deux cartes de ce
+ * menu : un bouton pleine largeur qui porte son titre et sa consequence. */
+.bouton-large,
+.modes button {
+    width: 100%;
+    min-height: 56px;
+    padding: 11px 14px;
+    border: 1px solid var(--bord);
+    border-radius: 13px;
+    background: var(--fond);
+    color: var(--texte);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.bouton-large strong,
+.modes strong { display: block; font-size: 15px; }
+
+.bouton-large small,
+.modes small { display: block; margin-top: 2px; color: var(--texte-doux); font-size: 12.5px; line-height: 1.35; }
+
+/* Le titre a gauche, le chevron qui annonce l'ouverture d'un menu a droite. */
+.bouton-large { display: flex; align-items: center; gap: 10px; }
+.bouton-large > span { flex: 1; min-width: 0; }
+.bouton-large > b { color: var(--texte-doux); font-size: 20px; font-weight: 400; }
+
+.modes { display: flex; flex-direction: column; gap: 8px; }
+.modes button { display: block; }
+
+.modes button[aria-pressed="true"] {
+    background: var(--surface);
+    border-color: var(--accent);
+    box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/* Le bouton qui lance reste sous le pouce. La feuille des reglages est plus
+ * haute qu'un ecran de telephone : c'est son milieu qui defile, pas son entete
+ * ni sa barre d'action — « Commencer » ne doit pas se meriter au defilement. */
+#dialogue-partie .feuille {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#dialogue-partie .feuille-corps {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 -18px;
+    padding: 0 18px;
+}
+
+#dialogue-partie .feuille-actions {
+    flex: 0 0 auto;
+    padding-top: 14px;
+    border-top: 1px solid var(--bord);
+}
+
 .choix-theme { display: flex; flex-wrap: wrap; gap: 7px; }
 
 .choix-theme button {
@@ -731,14 +829,16 @@ select {
 /* Le petit ecran : 320 px de large, ou tout se dispute la place. Les hauteurs
  * de cible ne bougent pas — seules les tailles de texte se resserrent. */
 @media (max-width: 370px) {
-    .barre { padding: 6px 6px; gap: 0; }
+    .barre { padding: 6px 6px; gap: 2px; }
     .titre { padding: 0 2px; }
     .titre h1 { font-size: 14px; letter-spacing: -.02em; }
     .titre p { font-size: 9.5px; letter-spacing: .02em; }
     /* La taille du texte se resserre, jamais celle de la cible : c'est ici
      * que la regle des 44 px se defait le plus volontiers, et c'est ici
      * qu'elle compte le plus. */
-    .icone { font-size: 17px; }
+    .bouton-barre { padding: 3px 3px; }
+    .bouton-barre .glyphe { font-size: 14px; }
+    .bouton-barre .etiquette { font-size: 8px; letter-spacing: 0; }
     .navigation button span { font-size: 9.5px; letter-spacing: .03em; }
     .navigation button strong { font-size: 12.5px; }
     .choix button { font-size: 14px; }

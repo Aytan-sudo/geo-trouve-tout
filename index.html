@@ -36,16 +36,24 @@
 <div class="page">
 
     <header class="barre">
-        <button type="button" class="icone titre" id="stats-ouvrir" aria-label="Résultats et séries">
+        <button type="button" class="titre" id="stats-ouvrir" aria-label="Résultats et séries">
             <span>
                 <h1>Géo Trouve-Tout</h1>
                 <p id="titre-mode">Défi du jour</p>
             </span>
         </button>
-        <button type="button" class="icone" id="aide-ouvrir" aria-label="Règles du jeu">?</button>
-        <button type="button" class="icone" id="theme-basculer" aria-label="Changer de thème">◐</button>
-        <button type="button" class="icone" id="options-ouvrir" aria-label="Options">⚙</button>
-        <button type="button" class="icone" id="son-basculer" aria-label="Son" aria-pressed="true">♪</button>
+        <button type="button" class="bouton-barre" id="aide-ouvrir" aria-label="Règles du jeu">
+            <span class="glyphe" aria-hidden="true">?</span><span class="etiquette">Règles</span>
+        </button>
+        <button type="button" class="bouton-barre" id="theme-basculer" aria-label="Changer de thème">
+            <span class="glyphe" aria-hidden="true">◐</span><span class="etiquette">Thème</span>
+        </button>
+        <button type="button" class="bouton-barre" id="options-ouvrir" aria-label="Options">
+            <span class="glyphe" aria-hidden="true">⚙</span><span class="etiquette">Options</span>
+        </button>
+        <button type="button" class="bouton-barre" id="son-basculer" aria-label="Son" aria-pressed="true">
+            <span class="glyphe" aria-hidden="true">♪</span><span class="etiquette" id="etiquette-son">Son</span>
+        </button>
     </header>
 
     <section class="compteurs" aria-label="Progression">
@@ -95,7 +103,7 @@
 
     <nav class="navigation" aria-label="Modes de jeu">
         <button type="button" id="nav-jour"><span>Chaque jour</span><strong>Défi du jour</strong></button>
-        <button type="button" id="nav-libre"><span>Vos réglages</span><strong>Partie libre</strong></button>
+        <button type="button" id="nav-libre"><span>Choisir</span><strong>Partie libre</strong></button>
         <button type="button" id="nav-progression"><span>Vos progrès</span><strong>Ma carte</strong></button>
     </nav>
 
@@ -124,10 +132,10 @@
         <p>Les accents, les traits d’union et les majuscules ne comptent pas : <i>etats unis</i> vaut <i>États-Unis</i>. Une lettre de travers passe aussi, et l’orthographe juste s’affiche. Mais écrire le nom d’un <em>autre</em> pays reste une erreur, même s’il n’en diffère que d’une lettre — l’Iran n’est pas l’Irak.</p>
 
         <h3>Les trois sens</h3>
-        <p><strong>Nommer</strong> le pays allumé, le <strong>trouver</strong> sur la carte muette à partir de son nom, ou donner sa <strong>capitale</strong>. Réglable dans les Options, et mélangeable.</p>
+        <p><strong>Nommer</strong> le pays allumé, le <strong>trouver</strong> sur la carte muette à partir de son nom, ou donner sa <strong>capitale</strong>. Réglable au départ d’une partie libre, et mélangeable.</p>
 
         <h3>Au clavier</h3>
-        <p><kbd>1</kbd>–<kbd>4</kbd> choisissent une proposition, <kbd>Entrée</kbd> valide, <kbd>N</kbd> lance une nouvelle manche, <kbd>R</kbd> relance la même, <kbd>T</kbd> change de thème, <kbd>?</kbd> ouvre cette notice, <kbd>Échap</kbd> ferme.</p>
+        <p><kbd>1</kbd>–<kbd>4</kbd> choisissent une proposition, <kbd>Entrée</kbd> valide, <kbd>N</kbd> lance une nouvelle partie libre, <kbd>R</kbd> relance la même, <kbd>T</kbd> change de thème, <kbd>?</kbd> ouvre cette notice, <kbd>Échap</kbd> ferme.</p>
         <div class="feuille-actions"><button type="button" class="primaire" data-fermer>Commencer</button></div>
     </div>
 </dialog>
@@ -139,29 +147,15 @@
             <button type="button" class="fermer" data-fermer aria-label="Fermer">×</button>
         </div>
 
-        <h3>Partie libre</h3>
-        <div class="reglage">
-            <label for="choix-atlas">Carte</label>
-            <select id="choix-atlas"></select>
-        </div>
-        <div class="reglage">
-            <label for="choix-niveau">Niveau</label>
-            <select id="choix-niveau"></select>
-        </div>
-        <p class="explication" id="explication-niveau"></p>
-        <div class="reglage">
-            <label for="choix-sens">Question</label>
-            <select id="choix-sens"></select>
-        </div>
-        <p class="explication" id="explication-sens"></p>
-        <div class="reglage">
-            <label for="choix-rythme">Rythme</label>
-            <select id="choix-rythme"></select>
-        </div>
-        <div class="reglage">
-            <label for="choix-chrono">Chrono</label>
-            <select id="choix-chrono"></select>
-        </div>
+        <h3>La partie</h3>
+        <p class="explication">Le type de partie se choisit au départ, dans son propre menu.</p>
+        <button type="button" class="bouton-large" id="options-partie">
+            <span>
+                <strong>Choisir une partie</strong>
+                <small id="resume-partie"></small>
+            </span>
+            <b aria-hidden="true">›</b>
+        </button>
 
         <h3>Thème</h3>
         <div class="choix-theme" id="choix-theme" role="group" aria-label="Thème"></div>
@@ -173,10 +167,66 @@
         <label class="option"><input type="checkbox" id="option-aide-saisie"><span><strong>Aide à la saisie</strong><small>Propose les noms qui commencent par ce que vous tapez. Sans effet en Expert.</small></span></label>
         <label class="option"><input type="checkbox" id="option-memoire"><span><strong>Révision guidée</strong><small>Les pays ratés reviennent plus souvent que les autres. Décochez pour un tirage purement au hasard.</small></span></label>
 
-        <p class="version" id="version">Géo Trouve-Tout 1.0.0</p>
+        <p class="version" id="version">Géo Trouve-Tout 1.0.1</p>
+        <div class="feuille-actions">
+            <button type="button" class="primaire" data-fermer>Fermer</button>
+        </div>
+    </div>
+</dialog>
+
+<!-- Le menu du depart. Les Options reglent le jeu ; celui-ci choisit la partie
+     qu'on commence, et lui seul la lance. -->
+<dialog id="dialogue-partie">
+    <div class="feuille">
+        <div class="feuille-entete">
+            <div><p class="legende-feuille">Le départ</p><h2>Nouvelle partie</h2></div>
+            <button type="button" class="fermer" data-fermer aria-label="Fermer">×</button>
+        </div>
+
+        <div class="feuille-corps">
+            <div class="modes" id="choix-mode" role="group" aria-label="Type de partie">
+                <button type="button" id="mode-jour" aria-pressed="false">
+                    <strong>Défi du jour</strong>
+                    <small>Dix pays, les mêmes pour tout le monde aujourd’hui.</small>
+                </button>
+                <button type="button" id="mode-libre" aria-pressed="true">
+                    <strong>Partie libre</strong>
+                    <small>Votre carte, votre niveau, votre rythme.</small>
+                </button>
+            </div>
+
+            <div id="reglages-libre">
+                <h3>Les réglages de la partie libre</h3>
+                <div class="reglage">
+                    <label for="choix-atlas">Carte</label>
+                    <select id="choix-atlas"></select>
+                </div>
+                <div class="reglage">
+                    <label for="choix-niveau">Niveau</label>
+                    <select id="choix-niveau"></select>
+                </div>
+                <p class="explication" id="explication-niveau"></p>
+                <div class="reglage">
+                    <label for="choix-sens">Question</label>
+                    <select id="choix-sens"></select>
+                </div>
+                <p class="explication" id="explication-sens"></p>
+                <div class="reglage">
+                    <label for="choix-rythme">Rythme</label>
+                    <select id="choix-rythme"></select>
+                </div>
+                <p class="explication" id="explication-rythme"></p>
+                <div class="reglage">
+                    <label for="choix-chrono">Chrono</label>
+                    <select id="choix-chrono"></select>
+                </div>
+                <p class="explication" id="explication-chrono"></p>
+            </div>
+        </div>
+
         <div class="feuille-actions">
             <button type="button" data-fermer>Fermer</button>
-            <button type="button" class="primaire" id="options-jouer">Nouvelle partie libre</button>
+            <button type="button" class="primaire" id="partie-commencer">Commencer</button>
         </div>
     </div>
 </dialog>

@@ -39,36 +39,22 @@ function remplir(select, table, valeur) {
     select.value = valeur;
 }
 
-export function creerOptions({ preferences, surChangement, surJouer }) {
+// Les Options reglent le jeu — le theme, les sensations — et rien de plus.
+// Le type de partie a son propre menu ci-dessous : melanger les deux, c'etait
+// demander de traverser un formulaire pour changer de niveau.
+export function creerOptions({ surChangement, surPartie }) {
     const dialogue = $('dialogue-options');
-    const champs = {
-        atlas: $('choix-atlas'), niveau: $('choix-niveau'), sens: $('choix-sens'),
-        rythme: $('choix-rythme'), chrono: $('choix-chrono')
+    const cases = {
+        sons: 'option-sons', vibration: 'option-vibration', signes: 'option-signes',
+        aideSaisie: 'option-aide-saisie', memoire: 'option-memoire'
     };
-
-    champs.atlas.textContent = '';
-    for (const carte of CATALOGUE) {
-        const option = document.createElement('option');
-        option.value = carte.id;
-        option.textContent = `${carte.emoji} ${carte.nom}`;
-        champs.atlas.append(option);
-    }
 
     const api = {
         dialogue,
 
-        montrer(etat) {
-            champs.atlas.value = etat.atlas;
-            remplir(champs.niveau, NIVEAUX, etat.niveau);
-            remplir(champs.sens, SENS, etat.sens);
-            remplir(champs.rythme, RYTHMES, etat.rythme);
-            remplir(champs.chrono, CHRONOS, etat.chrono);
-            $('explication-niveau').textContent = NIVEAUX[etat.niveau].resume;
-            $('explication-sens').textContent = SENS[etat.sens].resume;
-
-            for (const [clef, champ] of Object.entries({ sons: $('option-sons'), vibration: $('option-vibration'), signes: $('option-signes'), aideSaisie: $('option-aide-saisie'), memoire: $('option-memoire') })) {
-                champ.checked = etat[clef] !== false;
-            }
+        peindre(etat) {
+            for (const [clef, id] of Object.entries(cases)) $(id).checked = etat[clef] !== false;
+            $('resume-partie').textContent = libelleConfiguration(etat, nomDAtlas(etat.atlas));
 
             const themes = $('choix-theme');
             themes.textContent = '';
@@ -80,6 +66,69 @@ export function creerOptions({ preferences, surChangement, surJouer }) {
                 bouton.addEventListener('click', () => surChangement({ theme: theme.id }));
                 themes.append(bouton);
             }
+        },
+
+        montrer(etat) { api.peindre(etat); ouvrir(dialogue); }
+    };
+
+    for (const [clef, id] of Object.entries(cases)) {
+        $(id).addEventListener('change', evenement => surChangement({ [clef]: evenement.target.checked }));
+    }
+    $('options-partie').addEventListener('click', () => { dialogue.close(); surPartie(); });
+    return api;
+}
+
+// Le menu du depart : quelle partie on commence, et sous quels reglages. C'est
+// le seul endroit qui lance une partie libre, et le seul qui montre les cinq
+// axes cote a cote — un joueur qui veut changer de niveau n'a plus a chercher
+// dans les Options.
+export function creerMenuPartie({ surChangement, surCommencer }) {
+    const dialogue = $('dialogue-partie');
+    const champs = {
+        atlas: $('choix-atlas'), niveau: $('choix-niveau'), sens: $('choix-sens'),
+        rythme: $('choix-rythme'), chrono: $('choix-chrono')
+    };
+    const modes = { jour: $('mode-jour'), libre: $('mode-libre') };
+
+    champs.atlas.textContent = '';
+    for (const carte of CATALOGUE) {
+        const option = document.createElement('option');
+        option.value = carte.id;
+        option.textContent = `${carte.emoji} ${carte.nom}`;
+        champs.atlas.append(option);
+    }
+
+    let mode = 'libre';
+    let dernier = {};
+
+    const api = {
+        dialogue,
+        get mode() { return mode; },
+
+        peindre(etat = dernier) {
+            dernier = etat;
+            champs.atlas.value = etat.atlas;
+            remplir(champs.niveau, NIVEAUX, etat.niveau);
+            remplir(champs.sens, SENS, etat.sens);
+            remplir(champs.rythme, RYTHMES, etat.rythme);
+            remplir(champs.chrono, CHRONOS, etat.chrono);
+            $('explication-niveau').textContent = NIVEAUX[etat.niveau]?.resume ?? '';
+            $('explication-sens').textContent = SENS[etat.sens]?.resume ?? '';
+            $('explication-rythme').textContent = RYTHMES[etat.rythme]?.resume ?? '';
+            $('explication-chrono').textContent = CHRONOS[etat.chrono]?.resume ?? '';
+
+            for (const [clef, bouton] of Object.entries(modes)) {
+                bouton.setAttribute('aria-pressed', String(clef === mode));
+            }
+            // Le defi du jour est le meme pour tout le monde : ses reglages ne
+            // se discutent pas, alors on les retire de la vue.
+            $('reglages-libre').hidden = mode !== 'libre';
+            $('partie-commencer').textContent = mode === 'jour' ? 'Jouer le défi' : 'Commencer';
+        },
+
+        montrer(etat, modeVoulu = mode) {
+            mode = modeVoulu;
+            api.peindre(etat);
             ouvrir(dialogue);
         }
     };
@@ -87,10 +136,10 @@ export function creerOptions({ preferences, surChangement, surJouer }) {
     for (const [clef, champ] of Object.entries(champs)) {
         champ.addEventListener('change', () => surChangement({ [clef]: champ.value }));
     }
-    for (const [clef, id] of Object.entries({ sons: 'option-sons', vibration: 'option-vibration', signes: 'option-signes', aideSaisie: 'option-aide-saisie', memoire: 'option-memoire' })) {
-        $(id).addEventListener('change', evenement => surChangement({ [clef]: evenement.target.checked }));
+    for (const [clef, bouton] of Object.entries(modes)) {
+        bouton.addEventListener('click', () => { mode = clef; api.peindre(); });
     }
-    $('options-jouer').addEventListener('click', () => { dialogue.close(); surJouer(); });
+    $('partie-commencer').addEventListener('click', () => { dialogue.close(); surCommencer(mode); });
     return api;
 }
 

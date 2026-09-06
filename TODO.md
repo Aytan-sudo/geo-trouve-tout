@@ -3,8 +3,58 @@
 Journal de bord du jeu. Ce qui est fait est en haut, ce qui reste en bas, et
 chaque entrée dit assez pour être reprise dans six mois sans relire le code.
 
-État au 6 septembre 2026 : **1.0.0 publiée**, 262 vérifications vertes,
+État au 6 septembre 2026 : **1.0.1 publiée**, 262 vérifications vertes,
 vérificateur iOS au vert sur iPhone 15 et iPhone SE.
+
+---
+
+## 1.0.1 — le premier retour de joueur
+
+Quatre remarques, quatre corrections. Elles valent d'être notées : trois d'entre
+elles ne levaient aucune erreur et ne se voyaient qu'à l'œil.
+
+- **Le halo de l'épingle traversait l'écran en diagonale.** `transform-origin:
+  center` sur un élément SVG ne désigne pas le centre de l'élément : sans
+  `transform-box: fill-box`, le repère est la boîte du `viewBox`, donc le centre
+  de la carte, à deux mille unités de là. Le halo ne battait pas, il glissait.
+  Corrigé dans `css/carte.css`, et le battement perpétuel est devenu une seule
+  ouverture qui se pose — il attirait l'œil pendant toute la question.
+- **Les épingles étaient minuscules.** Leurs rayons sont écrits en pixels, mais
+  le groupe vivait à l'échelle du `viewBox` : un rayon de 7 sur un planisphère
+  large de 4000 faisait un point d'un pixel et demi sur un téléphone.
+  `placerMarqueurs()` compense maintenant le rapport d'affichage — ce que le
+  commentaire du fichier promettait déjà.
+- **Les pastilles de « Ma carte » survivaient à la partie suivante** et
+  débordaient sous les réponses. `rendu.question()` les retire désormais à
+  chaque question, et `quitterProgression()` avec l'écran.
+- **La barre du haut n'avait que des glyphes.** Ils se lisaient comme des
+  décorations : ce sont maintenant des boutons avec surface, contour et nom
+  (Règles, Thème, Options, Son / Muet).
+- **Le type de partie a son propre menu.** Il était noyé dans les Options ;
+  « Partie libre » ouvre à présent *Nouvelle partie*, qui montre les deux modes,
+  les cinq réglages de la partie libre, et le bouton qui lance. Les Options ne
+  gardent que le jeu lui-même — thème, sons, aides — et un renvoi vers ce menu.
+
+- **Dix-sept pixels de défilement sur un écran qui ne défile pas.** La zone
+  d'annonce des lecteurs d'écran (`.annonce`) est absolue mais n'avait pas de
+  coordonnées : elle restait donc à sa place dans le flux, sous une page haute
+  de 100 %. Un `top: 0; left: 0` suffit. Se voyait sur ordinateur (une barre de
+  défilement), pas dans le vérificateur iOS, qui ne regarde que l'horizontale.
+
+- **Deux bugs trouvés en chemin, dans la même mécanique.** Changer de carte en
+  pleine partie remplaçait le planisphère sous la question en cours — on lisait
+  « Quel est ce pays ? » devant l'Europe, avec la Colombie pour réponse. Et
+  surtout : la carte des réglages servait aussi au **défi du jour**, si bien
+  qu'un joueur ayant choisi l'Europe jouait un défi composé en Europe, différent
+  de celui de tout le monde, et rangé au palmarès sous le nom du monde. La carte
+  se charge désormais au départ d'une partie (`lancer()` dans `js/app.js`,
+  jamais au changement de réglage), et la configuration enregistrée dit la carte
+  réellement jouée.
+
+  **Écart assumé avec la convention** (`convention.md`, §2 « Interface type »,
+  qui met mode et difficulté dans les Options) : un joueur qui veut changer de
+  niveau ne devrait pas traverser un formulaire de réglages. À rediscuter pour
+  la collection si le cas se répète.
 
 ---
 
