@@ -13,6 +13,21 @@ const NS = 'http://www.w3.org/2000/svg';
 const ZOOM_MAX = 14;
 const COUVERTURE_DEFAUT = 1.55;
 
+// Ou se pose la vue apres un pincement.
+//
+// C'est tout le geste des cartes qu'on connait, et il tient en une regle : le
+// point de la carte qui etait sous les doigts y reste, et suit ce point s'il se
+// deplace. Zoom et translation ne sont pas deux gestes, c'en est un seul.
+//
+// `depuis` et `vers` sont en unites de viewBox — le milieu des doigts avant et
+// apres le mouvement. La fonction ne touche a rien : elle rend la nouvelle vue,
+// et tests/test-carte.mjs verifie l'invariant sans navigateur.
+export function apresPincement({ dx, dy, echelle }, { facteur, depuis, vers = depuis, min = 1, max = ZOOM_MAX }) {
+    const ancre = { x: (depuis.x - dx) / echelle, y: (depuis.y - dy) / echelle };
+    const nouvelle = Math.min(max, Math.max(min, echelle * facteur));
+    return { echelle: nouvelle, dx: vers.x - ancre.x * nouvelle, dy: vers.y - ancre.y * nouvelle };
+}
+
 const balise = (nom, attributs = {}) => {
     const noeud = document.createElementNS(NS, nom);
     for (const [clef, valeur] of Object.entries(attributs)) noeud.setAttribute(clef, valeur);
@@ -121,6 +136,17 @@ export function creerCarte(hote, atlas, { surTouche = null } = {}) {
         const boite = svg.getBoundingClientRect();
         if (!boite.width || !boite.height) return 1;
         return Math.min(boite.width / atlas.largeur, boite.height / atlas.hauteur) || 1;
+    };
+
+    // Un point d'ecran dans le repere du viewBox, avant la transformation de la
+    // vue. C'est le repere ou vit l'ancre d'un pincement.
+    const versVue = (x, y) => {
+        const boite = svg.getBoundingClientRect();
+        const facteur = Math.min(boite.width / atlas.largeur, boite.height / atlas.hauteur) || 1;
+        return {
+            x: (x - boite.left - (boite.width - atlas.largeur * facteur) / 2) / facteur,
+            y: (y - boite.top - (boite.height - atlas.hauteur * facteur) / 2) / facteur
+        };
     };
 
     function placerMarqueurs() {
@@ -263,16 +289,9 @@ export function creerCarte(hote, atlas, { surTouche = null } = {}) {
             return proche ?? direct?.dataset.id ?? null;
         },
 
-        // Coordonnees ecran vers coordonnees de la carte.
-        versCarte(x, y) {
-            const boite = svg.getBoundingClientRect();
-            const facteur = Math.min(boite.width / atlas.largeur, boite.height / atlas.hauteur);
-            const bordX = (boite.width - atlas.largeur * facteur) / 2;
-            const bordY = (boite.height - atlas.hauteur * facteur) / 2;
-            return {
-                x: ((x - boite.left - bordX) / facteur - dx) / echelle,
-                y: ((y - boite.top - bordY) / facteur - dy) / echelle
-            };
+            versCarte(x, y) {
+            const u = versVue(x, y);
+            return { x: (u.x - dx) / echelle, y: (u.y - dy) / echelle };
         },
 
         deplacer(deltaX, deltaY) {
@@ -281,11 +300,24 @@ export function creerCarte(hote, atlas, { surTouche = null } = {}) {
             brider(); svg.classList.add('sans-transition'); appliquer();
         },
 
-        zoomer(facteur, centreX, centreY) {
-            const avant = api.versCarte(centreX, centreY);
-            echelle = Math.min(ZOOM_MAX, Math.max(couverture(), echelle * facteur));
-            dx = atlas.largeur / 2 - avant.x * echelle;
-            dy = atlas.hauteur / 2 - avant.y * echelle;
+        // Pincer, a deux doigts ou a la molette. `depuis` est le milieu des
+        // doigts avant le mouvement, `vers` apres : la carte suit les deux.
+        //
+        // Elle reposait autrefois l'ancre au milieu du planisphere, si bien que
+        // le moindre pincement excentre projetait la carte a l'autre bout de
+        // l'ecran — cent quatre-vingts pixels par evenement, soixante fois par
+        // seconde. C'est ce que les joueurs appelaient « partir en vrille ».
+        pincer(facteur, depuis, vers = depuis) {
+            const vue = apresPincement(
+                { dx, dy, echelle },
+                {
+                    facteur,
+                    depuis: versVue(depuis.x, depuis.y),
+                    vers: versVue(vers.x, vers.y),
+                    min: couverture(), max: ZOOM_MAX
+                }
+            );
+            echelle = vue.echelle; dx = vue.dx; dy = vue.dy;
             brider(); svg.classList.add('sans-transition'); appliquer();
         },
 

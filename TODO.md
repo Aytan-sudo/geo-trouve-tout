@@ -3,10 +3,43 @@
 Journal de bord du jeu. Ce qui est fait est en haut, ce qui reste en bas, et
 chaque entrée dit assez pour être reprise dans six mois sans relire le code.
 
-État au 7 septembre 2026 : **1.1.1**, 453 vérifications vertes, vérificateur iOS
+État au 7 septembre 2026 : **1.1.2**, 475 vérifications vertes, vérificateur iOS
 au vert sur iPhone 15 et iPhone SE.
 
 ---
+
+## 1.1.2 — le pincement partait en vrille
+
+Rapporté par les joueurs : « dézoomer ou zoomer part en vrille, c'est difficile
+à stabiliser, on s'attend au fonctionnement de Google Maps ». Ils avaient
+raison, et l'intuition « c'est pris comme une translation en même temps que le
+zoom » désignait exactement la faute.
+
+`zoomer()` reposait l'ancre du pincement **au milieu du planisphère** :
+
+```js
+dx = atlas.largeur / 2 - avant.x * echelle;   // le centre du viewBox, pas les doigts
+```
+
+Autrement dit, à chaque événement, ce qui se trouvait entre les doigts était
+projeté au centre de la carte. Mesuré sur iPhone 15 : **189 px de dérive
+horizontale pour un seul pas de pincement** sur un écran large de 393 — et un
+pincement réel en produit une soixantaine par seconde. L'expression était juste,
+le repère faux ; rien n'en paraissait à la lecture.
+
+- `pincer(facteur, depuis, vers)` remplace `zoomer()` : le point sous le milieu
+  des doigts y reste, et **suit ce milieu s'il se déplace**. Écarter grossit,
+  glisser déplace, et les deux ensemble font un seul geste — celui des cartes
+  qu'on connaît. Dérive mesurée après correction : 0 px, y compris sur quarante
+  pas d'affilée.
+- **La molette suit la course** au lieu d'avancer par pas fixe de 1,16 : un cran
+  de souris grossit d'un cinquième, un glissement de trackpad par petites
+  touches. Un trackpad envoie des dizaines d'événements par seconde, et le pas
+  fixe faisait bondir la carte à chaque impulsion.
+- Le calcul est sorti du rendu (`apresPincement`, exporté par `js/carte.js`)
+  pour se tester **sans navigateur** : `tests/test-carte.mjs` vérifie que
+  l'ancre ne bouge pas, qu'elle suit la translation, qu'elle tient aux deux
+  bornes de grossissement, et — nommément — qu'elle ne saute plus au centre.
 
 ## 1.1.1 — le numéro dans le nom
 

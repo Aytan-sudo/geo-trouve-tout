@@ -160,6 +160,13 @@ est de l’océan. Aux niveaux sans aide, la cible n’est pas grossie mais elle
 amenée au centre : une carte rognée ne doit jamais laisser le pays cherché hors
 du champ.
 
+**Le geste de la carte tient en une règle** : le point qui était sous les doigts
+y reste, et suit le milieu des doigts s’il se déplace. Zoom et translation ne
+sont pas deux gestes, c’en est un seul — celui qu’on connaît des cartes. Le
+calcul est sorti du rendu pour se tester sans navigateur
+(`apresPincement`, `tests/test-carte.mjs`) : c’est le seul morceau de
+`carte.js` qui ne touche pas au DOM, et c’est aussi celui qui a le plus coûté.
+
 **Le noyau ne touche à rien.** `questions.js`, `reponse.js`, `memoire.js` et
 `partie.js` ignorent le DOM, l’horloge et `Math.random` — le hasard entre par la
 porte, à graine. Tout se teste en Node, et c’est ce qui rend possible le défi du
@@ -172,7 +179,7 @@ js/questions.js    tirage, distracteurs, indices        ← noyau
 js/reponse.js      normalisation, alias, tolérance      ← noyau
 js/memoire.js      maîtrise par pays, poids de révision ← noyau
 js/partie.js       manche, score, vies, chrono          ← noyau
-js/carte.js        rendu SVG, zoom, ancres, toucher
+js/carte.js        rendu SVG, cadrage, pincement, ancres, toucher
 js/rendu.js        énoncé, propositions, verdict
 js/entree.js       gestes, clavier maison, raccourcis
 js/hasard.js       le hasard reproductible

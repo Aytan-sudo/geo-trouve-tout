@@ -30,7 +30,7 @@ export function interdireDoubleTap(cible) {
 // sans ce seuil, personne ne parvient a toucher le Luxembourg sans bouger.
 export function gestesCarte(element, carte, { surAppui = null } = {}) {
     const doigts = new Map();
-    let ecart0 = 0, bouge = false, depart = null;
+    let ecart0 = 0, bouge = false, depart = null, milieu0 = null;
 
     const centre = () => {
         const points = [...doigts.values()];
@@ -48,7 +48,7 @@ export function gestesCarte(element, carte, { surAppui = null } = {}) {
         element.setPointerCapture?.(evenement.pointerId);
         doigts.set(evenement.pointerId, { x: evenement.clientX, y: evenement.clientY });
         if (doigts.size === 1) { bouge = false; depart = { x: evenement.clientX, y: evenement.clientY }; }
-        if (doigts.size === 2) ecart0 = ecart();
+        if (doigts.size === 2) { ecart0 = ecart(); milieu0 = centre(); }
     });
 
     element.addEventListener('pointermove', evenement => {
@@ -63,10 +63,14 @@ export function gestesCarte(element, carte, { surAppui = null } = {}) {
             bouge = true;
             carte.deplacer(evenement.clientX - precedent.x, evenement.clientY - precedent.y);
         } else if (doigts.size === 2 && ecart0 > 0) {
+            // Un seul geste : ce qui etait sous le milieu des doigts y reste et
+            // suit ce milieu. Ecarter grossit, glisser deplace, et les deux
+            // ensemble font ce qu'on attend d'une carte.
             const maintenant = ecart();
             const milieu = centre();
-            carte.zoomer(maintenant / ecart0, milieu.x, milieu.y);
+            carte.pincer(maintenant / ecart0, milieu0 ?? milieu, milieu);
             ecart0 = maintenant;
+            milieu0 = milieu;
             bouge = true;
         }
     });
@@ -76,15 +80,20 @@ export function gestesCarte(element, carte, { surAppui = null } = {}) {
         const dernier = doigts.size === 1;
         doigts.delete(evenement.pointerId);
         if (dernier && !bouge && surAppui) surAppui(evenement.clientX, evenement.clientY);
-        if (doigts.size < 2) ecart0 = 0;
+        if (doigts.size < 2) { ecart0 = 0; milieu0 = null; }
     };
     element.addEventListener('pointerup', lacher);
     element.addEventListener('pointercancel', evenement => { doigts.delete(evenement.pointerId); });
 
-    // La molette et le trackpad, pour qui joue au bureau.
+    // La molette et le trackpad, pour qui joue au bureau. Le grossissement suit
+    // la course : un cran de souris avance franchement, un glissement de
+    // trackpad par petites touches. Le pas fixe d'avant faisait bondir la carte
+    // a chaque impulsion, et un trackpad en envoie des dizaines par seconde.
     element.addEventListener('wheel', evenement => {
         evenement.preventDefault();
-        carte.zoomer(evenement.deltaY < 0 ? 1.16 : 1 / 1.16, evenement.clientX, evenement.clientY);
+        const course = evenement.deltaMode === 1 ? evenement.deltaY * 16 : evenement.deltaY;
+        const facteur = Math.exp(-Math.max(-120, Math.min(120, course)) / 400);
+        carte.pincer(facteur, { x: evenement.clientX, y: evenement.clientY });
     }, { passive: false });
 }
 
