@@ -16,8 +16,11 @@ import { writeFile, readFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { PAYS, CONTINENTS, PIEGES } from './pays.mjs';
 import { DEPARTEMENTS, REGIONS, PIEGES_DEPARTEMENTS, PIEGES_REGIONS } from './france.mjs';
+import { FLEUVES_FRANCE, FLEUVES_MONDE, PIEGES_FLEUVES } from './fleuves.mjs';
 import { PROJECTIONS } from './projection.mjs';
-import { simplifier, aireAnneau, boite, ancre, chemin, couper } from './geometrie.mjs';
+import {
+    simplifier, aireAnneau, longueur, boite, ancre, ancreLigne, chemin, trait, couper, couperLigne
+} from './geometrie.mjs';
 
 const CACHE = new URL('cache/', import.meta.url);
 const DATA = new URL('../data/', import.meta.url);
@@ -27,7 +30,13 @@ const SOURCES = {
     // france-geojson (Gregoire David), Licence Ouverte. Les fichiers « avec
     // outre-mer » sont les seuls a porter les cinq DROM.
     'departements-om': 'https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/departements-avec-outre-mer.geojson',
-    'regions-om': 'https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/regions-avec-outre-mer.geojson'
+    'regions-om': 'https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/regions-avec-outre-mer.geojson',
+    // Natural Earth, domaine public. Le 50m suffit au planisphere ; la France
+    // demande le 10m, et meme lui ignore la moitie de ses rivieres — le
+    // supplement europeen porte l'Adour, la Charente, la Somme, la Vilaine.
+    fleuves50: 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_rivers_lake_centerlines.geojson',
+    fleuves10: 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_rivers_lake_centerlines.geojson',
+    'fleuves-europe': 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_rivers_europe.geojson'
 };
 
 // Les mots de chaque famille de cartes. Ils voyagent dans le fichier d'atlas et
@@ -56,6 +65,25 @@ const MOTS_REGIONS = {
     chef: 'chef-lieu', laChef: 'le chef-lieu', saChef: 'son chef-lieu', quelEstChef: 'Quel est',
     groupe: 'ensemble', leGroupe: 'l’ensemble', duGroupe: 'du même ensemble',
     acquis: 'acquises', jamaisVus: 'jamais vues'
+};
+
+// Un cours d'eau se dit « il » : le mot qui le designe est masculin, et les
+// deux cartes de fleuves partagent donc tout sauf leur groupe — le bassin en
+// France, le continent sur le planisphere.
+const MOTS_FLEUVES = {
+    entite: 'cours d’eau', entites: 'cours d’eau', unEntite: 'un cours d’eau',
+    leEntite: 'le cours d’eau', ceEntite: 'ce cours d’eau', quelEst: 'Quel est',
+    leLa: 'le', ilEntite: 'il',
+    embouchure: 'embouchure', sonEmbouchure: 'son embouchure',
+    acquis: 'acquis', jamaisVus: 'jamais vus'
+};
+const MOTS_FLEUVES_FRANCE = {
+    ...MOTS_FLEUVES,
+    groupe: 'bassin', leGroupe: 'le bassin', duGroupe: 'du même bassin'
+};
+const MOTS_FLEUVES_MONDE = {
+    ...MOTS_FLEUVES,
+    groupe: 'continent', leGroupe: 'le continent', duGroupe: 'du même continent'
 };
 
 // Les cinq DROM, chacun dans son cartouche. Ils sont a huit mille kilometres de
@@ -154,6 +182,55 @@ const ATLAS = {
         decor: { source: 'pays50', cadre: [-9, 40, 13, 54], exclus: ['FRA'] },
         couverture: 1.02,
         zoomCadrage: 1.35
+    },
+    // Les deux cartes de traces. Rien n'y est nouveau sauf `lignes` : le reste
+    // de ce fichier ne sait pas qu'il fabrique un fleuve plutot qu'un pays.
+    'france-fleuves': {
+        nom: 'Les fleuves de France',
+        sources: ['fleuves10', 'fleuves-europe'],
+        lignes: true,
+        contenu: FLEUVES_FRANCE,
+        pieges: PIEGES_FLEUVES,
+        groupe: fiche => fiche.bassin,
+        mots: MOTS_FLEUVES_FRANCE,
+        projection: 'lambert',
+        options: { lat1: 44, lat2: 49, lat0: 46.5, lon0: 3 },
+        largeur: 3000,
+        tolerance: 0.8,
+        marge: 0.02,
+        // Le cadre suit la vue de pres, et c'est voulu. Le Rhin continue
+        // jusqu'a Rotterdam, la Meuse jusqu'a la mer du Nord : les laisser
+        // courir hors de l'ecran gonflerait leur boite, et le jeu cadrerait la
+        // question du Rhin sur un point situe en Allemagne. On les coupe donc
+        // au bord — la coupe se voit a peine, et ce qui reste est ce qui compte.
+        cadre: [-5.7, 41.0, 8.7, 51.4],
+        vue: [-5.4, 41.2, 8.4, 51.2],
+        decor: { source: 'pays50', cadre: [-10, 39, 14, 54] },
+        // Le trace d'un fleuve est fin : on peut s'en approcher, mais sa place
+        // dans le pays reste ce qui le designe.
+        couverture: 1.1,
+        zoomCadrage: 4
+    },
+    'monde-fleuves': {
+        nom: 'Les fleuves du monde',
+        sources: ['fleuves50'],
+        lignes: true,
+        contenu: FLEUVES_MONDE,
+        pieges: PIEGES_FLEUVES,
+        groupe: fiche => fiche.continent,
+        mots: MOTS_FLEUVES_MONDE,
+        projection: 'equal-earth',
+        largeur: 4000,
+        // Le meme grain que le planisphere des pays : ici tous les pays sont du
+        // decor, et un grain plus fin doublerait le fichier pour un fond de
+        // carte que personne ne regarde de pres.
+        tolerance: 4,
+        // Le cadre du planisphere, pas celui des fleuves : sans lui la carte se
+        // refermerait sur le dernier trace, et les continents deborderaient.
+        vue: [-180, -56, 180, 83],
+        decor: { source: 'pays50', exclus: ['ATA'] },
+        couverture: 1.55,
+        zoomCadrage: 8
     }
 };
 
@@ -168,6 +245,15 @@ const EUROPE = new Set([
 // autour de chaque forme dans sa case.
 const PART_CARTOUCHES = 0.26;
 const MARGE_CARTOUCHE = 0.1;
+
+// Un atlas lit une source ou plusieurs : les fleuves de France demandent le
+// fond mondial et le supplement europeen, et rien ne distingue leurs entites
+// une fois lues.
+async function sourcesDe(config) {
+    const noms = config.sources ?? [config.source];
+    const lots = await Promise.all(noms.map(source));
+    return lots.flatMap(lot => lot.features);
+}
 
 async function source(nom) {
     if (!existsSync(CACHE)) await mkdir(CACHE, { recursive: true });
@@ -188,16 +274,61 @@ async function source(nom) {
 const ALIAS_CODE = { KOS: 'XKX', PSX: 'PSE', SDS: 'SSD' };
 const codePays = p => ALIAS_CODE[p.ADM0_A3] ?? p.ADM0_A3;
 
-function polygones(geometrie) {
-    return geometrie.type === 'Polygon' ? [geometrie.coordinates] : geometrie.coordinates;
-}
+// Ce qui separe une carte de traces d'une carte de surfaces — et rien d'autre.
+// Le reste du fichier projette, pose, simplifie et ecrit sans savoir laquelle
+// des deux il tient en main.
+//
+// Une partie voyage partout sous la meme forme : un tableau de suites de
+// points. Un polygone est la liste de ses anneaux, une ligne une liste d'un
+// seul element. C'est ce qui permet a `projeterGroupes` et a `poser` de servir
+// aux deux sans une ligne de plus.
+const SURFACES = {
+    // Un polygone coupe reste un polygone : zero ou une partie en sortie.
+    parties: geometrie => (geometrie.type === 'Polygon' ? [geometrie.coordinates] : geometrie.coordinates),
+    cadrer: (polygone, cadre) => {
+        if (!cadre) return [polygone];
+        const coupes = polygone.map(anneau => couper(anneau, cadre)).filter(a => a.length >= 3);
+        return coupes.length ? [coupes] : [];
+    },
+    mesure: partie => aireAnneau(partie[0]),
+    ancre: partie => ancre(partie),
+    encoder: chemin,
+    // L'etendue du plus gros morceau : celle de toutes les iles enverrait la
+    // France cadrer la Polynesie.
+    etendue: (parties, principale) => boite([principale[0]]),
+    seuilPetit: config => (config.largeur / (config.seuilMinuscule ?? 200)) ** 2,
+    seuilIlot: config => config.tolerance * config.tolerance * 0.6,
+    champTaille: 'aire'
+};
+const TRACES = {
+    parties: geometrie => (geometrie.type === 'LineString'
+        ? [[geometrie.coordinates]]
+        : geometrie.coordinates.map(ligne => [ligne])),
+    // Une ligne coupee se rend en plusieurs : un fleuve qui sort du cadre et y
+    // revient donne deux traces, et c'est ce qu'il faut dessiner.
+    cadrer: ([ligne], cadre) => couperLigne(ligne, cadre).map(l => [l]),
+    mesure: partie => longueur(partie[0]),
+    ancre: partie => ancreLigne(partie),
+    encoder: trait,
+    // Tous les troncons, eux : le plus long de la Loire ne couvre que sa
+    // moitie basse, et cadrer dessus perdrait la source.
+    etendue: parties => boite(parties.flat()),
+    seuilPetit: config => config.largeur / (config.seuilMinuscule ?? 30),
+    // Le seuil d'un trace est bien plus bas que celui d'un ilot, et il le faut.
+    // Une ile minuscule qu'on jette ne manque a personne ; un troncon court,
+    // lui, peut etre le morceau qui relie deux moities d'un fleuve. La Volga
+    // arrive en seize troncons dont dix font moins de cent kilometres, et les
+    // jeter la coupait en deux au milieu de la Russie. On ne jette donc que ce
+    // qui est plus court que le grain de la simplification — des echardes
+    // laissees par la coupe au cadre, invisibles par construction.
+    seuilIlot: config => config.tolerance,
+    champTaille: 'longueur'
+};
 
-// Ramene un polygone au cadre de l'atlas. Rend null s'il n'en reste rien.
-function cadrer(polygone, cadre) {
-    if (!cadre) return polygone;
-    const coupes = polygone.map(anneau => couper(anneau, cadre)).filter(a => a.length >= 3);
-    return coupes.length ? coupes : null;
-}
+// Tout point d'une partie tombe-t-il dans ce cadre en degres ? Sert aux fleuves
+// homonymes : deux rivieres du monde s'appellent Colorado.
+const touche = (partie, [l0, p0, l1, p1]) =>
+    partie.flat().some(([lon, lat]) => lon >= l0 && lon <= l1 && lat >= p0 && lat <= p1);
 
 const projeterGroupes = (groupes, projeter, options) =>
     groupes.map(poly => poly.map(anneau => anneau.map(p => projeter(p, options))));
@@ -223,10 +354,23 @@ function poser(anneaux, [cx0, cy0, cx1, cy1]) {
     return ([x, y]) => [x * echelle + dx, y * echelle + dy];
 }
 
+// Un trace se reconnait a son nom, et un fleuve en porte plusieurs le long de
+// son cours. On ne lit que `name` et `name_fr` : la source range aussi des noms
+// dans une vingtaine de champs de langue, et c'est par la qu'arrivent les
+// fausses reconnaissances — l'Arc y porte « Isere » en nom alternatif.
+function clefParTrace(table) {
+    const index = new Map();
+    for (const [id, fiche] of Object.entries(table)) {
+        for (const nom of fiche.traces ?? []) index.set(nom, id);
+    }
+    return props => index.get(props.name_fr) ?? index.get(props.name) ?? null;
+}
+
 async function fabriquer(id) {
     const config = ATLAS[id];
     const table = config.contenu;
-    const brut = await source(config.source);
+    const geo = config.lignes ? TRACES : SURFACES;
+    const features = await sourcesDe(config);
     const projeter = PROJECTIONS[config.projection];
     const options = config.options ?? {};
     const cartouches = config.cartouches ?? [];
@@ -234,33 +378,43 @@ async function fabriquer(id) {
     for (const [rang, cartouche] of cartouches.entries()) {
         for (const code of cartouche.ids) dansUnCartouche.set(code, rang);
     }
+    const clef = config.lignes ? clefParTrace(table) : config.clef;
 
-    // 1. Lire la source. Chaque entite part dans son propre repere : le dessin
-    //    principal dans la projection de l'atlas, chaque cartouche dans une
-    //    projection locale, centree sur lui.
-    const principaux = [];
-    const parCartouche = cartouches.map(() => []);
-    for (const feature of brut.features) {
-        const code = config.clef(feature.properties);
+    // 1. Lire les sources. Chaque entite part dans son propre repere : le
+    //    dessin principal dans la projection de l'atlas, chaque cartouche dans
+    //    une projection locale, centree sur lui.
+    //
+    //    Une entite peut arriver en plusieurs features — un fleuve change de
+    //    nom en route, et la source le coupe a chaque frontiere. On les
+    //    rassemble ici : au-dela, la Loire est une entite comme une autre.
+    const principaux = new Map();
+    const parCartouche = cartouches.map(() => new Map());
+    for (const feature of features) {
+        const code = clef(feature.properties);
+        if (code === null || code === undefined) continue;
         if (config.exclus?.includes(code)) continue;
         const jouable = code in table && (config.retenir?.(code) ?? true);
+        // Sur une carte de traces, ce qui n'est pas jouable n'est pas non plus
+        // du decor : une ligne versee dans le decor y serait remplie comme un
+        // pays. Le fond de carte vient de `decor`, et de lui seul.
+        if (!jouable && config.lignes) continue;
         const rang = dansUnCartouche.get(code);
-        const decoupes = polygones(feature.geometry)
-            .map(poly => cadrer(poly, rang === undefined ? config.cadre : null))
-            .filter(Boolean);
+        const fiche = table[code];
+        const decoupes = geo.parties(feature.geometry)
+            .filter(partie => !fiche?.cadre || touche(partie, fiche.cadre))
+            .flatMap(partie => geo.cadrer(partie, rang === undefined ? config.cadre : null));
         if (!decoupes.length) continue;
-        const entite = { code, jouable, props: feature.properties };
-        if (rang === undefined) {
-            entite.groupes = projeterGroupes(decoupes, projeter, options);
-            principaux.push(entite);
-        } else {
-            entite.groupes = projeterGroupes(decoupes, PROJECTIONS.plate, cartouches[rang].centre);
-            parCartouche[rang].push(entite);
-        }
+        const ou = rang === undefined ? principaux : parCartouche[rang];
+        const groupes = rang === undefined
+            ? projeterGroupes(decoupes, projeter, options)
+            : projeterGroupes(decoupes, PROJECTIONS.plate, cartouches[rang].centre);
+        const entite = ou.get(code) ?? { code, jouable, props: feature.properties, groupes: [] };
+        entite.groupes.push(...groupes);
+        ou.set(code, entite);
     }
 
     // 2. L'etendue du dessin principal, ou celle que l'atlas impose.
-    let [bx0, by0, bx1, by1] = boite(principaux.flatMap(e => e.groupes.flat()));
+    let [bx0, by0, bx1, by1] = boite([...principaux.values()].flatMap(e => e.groupes.flat()));
     if (config.vue) [bx0, by0, bx1, by1] = boite([contourDe(config.vue).map(p => projeter(p, options))]);
 
     // 3. Poser : la colonne des cartouches a gauche, le dessin principal a
@@ -273,29 +427,30 @@ async function fabriquer(id) {
     const echelle = (largeurPrincipale - 2 * marge) / (bx1 - bx0);
     const hauteur = Math.round((by1 - by0) * echelle + 2 * marge);
     const vers = ([x, y]) => [(x - bx0) * echelle + colonne + marge, (y - by0) * echelle + marge];
-    for (const e of principaux) e.groupes = e.groupes.map(poly => poly.map(a => a.map(vers)));
+    for (const e of principaux.values()) e.groupes = e.groupes.map(p => p.map(a => a.map(vers)));
 
     const cases = cartouches.map((cartouche, rang) => {
         const haut = hauteur / cartouches.length;
         const marge = Math.min(colonne, haut) * MARGE_CARTOUCHE;
         const boiteCase = [marge, rang * haut + marge, colonne - marge, (rang + 1) * haut - marge];
-        const dedans = parCartouche[rang];
+        const dedans = [...parCartouche[rang].values()];
         const poseur = poser(dedans.flatMap(e => e.groupes.flat()), boiteCase);
         for (const e of dedans) e.groupes = e.groupes.map(poly => poly.map(a => a.map(poseur)));
         return { nom: cartouche.nom, ids: cartouche.ids, boite: boiteCase.map(Math.round) };
     });
 
-    const retenus = [...principaux, ...parCartouche.flat()];
+    const retenus = [...principaux.values(), ...parCartouche.flatMap(c => [...c.values()])];
 
-    // 4. Simplifier, jeter les ilots invisibles.
-    const seuilIlot = config.tolerance * config.tolerance * 0.6;
+    // 4. Simplifier, jeter les morceaux invisibles — les ilots d'un pays, les
+    //    bouts de trace qu'une coupe a laisses au ras du cadre.
+    const seuilIlot = geo.seuilIlot(config);
     for (const e of retenus) {
-        e.groupes = e.groupes.map(poly => poly.map(anneau => simplifier(anneau, config.tolerance)));
-        const gardes = e.groupes.filter(poly => aireAnneau(poly[0]) >= seuilIlot);
-        // Une entite entierement faite d'ilots minuscules garde son plus gros :
-        // mieux vaut un point pour Nauru qu'un trou dans le Pacifique.
+        e.groupes = e.groupes.map(poly => poly.map(suite => simplifier(suite, config.tolerance)));
+        const gardes = e.groupes.filter(poly => geo.mesure(poly) >= seuilIlot);
+        // Une entite entierement faite de morceaux minuscules garde son plus
+        // gros : mieux vaut un point pour Nauru qu'un trou dans le Pacifique.
         e.groupes = gardes.length ? gardes
-            : [e.groupes.sort((a, b) => aireAnneau(b[0]) - aireAnneau(a[0]))[0]];
+            : [e.groupes.sort((a, b) => geo.mesure(b) - geo.mesure(a))[0]];
     }
 
     // 5. Le decor : ce qui n'est pas jouable, plus le fond de carte optionnel.
@@ -307,10 +462,10 @@ async function fabriquer(id) {
         const cadreDecor = [colonne, 0, config.largeur, hauteur];
         for (const feature of fond.features) {
             if (config.decor.exclus?.includes(codePays(feature.properties))) continue;
-            for (const poly of polygones(feature.geometry)) {
-                const coupe = cadrer(poly, config.decor.cadre);
-                if (!coupe) continue;
-                for (const anneau of coupe) {
+            // Le decor est toujours une surface, meme sur une carte de traces :
+            // c'est le fond de pays sur lequel les fleuves se lisent.
+            for (const poly of SURFACES.parties(feature.geometry)) {
+                for (const anneau of SURFACES.cadrer(poly, config.decor.cadre).flat()) {
                     const pose = simplifier(anneau.map(p => vers(projeter(p, options))), config.tolerance);
                     const dedans = couper(pose, cadreDecor);
                     if (dedans.length >= 3) decor.push(dedans);
@@ -323,7 +478,7 @@ async function fabriquer(id) {
     // Sous ce seuil, une entite occupe moins de deux pixels sur un telephone :
     // Malte, Nauru, Paris. Le fichier garde sa forme exacte, et signale au
     // rendu qu'il faudra une epingle pour la trouver.
-    const seuilMinuscule = (config.largeur / (config.seuilMinuscule ?? 200)) ** 2;
+    const seuilMinuscule = geo.seuilPetit(config);
 
     // Nauru fait vingt et un kilometres carres : a l'echelle du monde, son
     // contour se replie sur un seul point et disparait a l'arrondi. L'entite
@@ -339,23 +494,28 @@ async function fabriquer(id) {
     for (const e of retenus) {
         if (!e.jouable) continue;
         const fiche = table[e.code];
-        const principal = e.groupes.reduce((a, b) => aireAnneau(b[0]) > aireAnneau(a[0]) ? b : a);
-        const [x0, y0, x1, y1] = boite([principal[0]]);
-        const aire = e.groupes.reduce((somme, poly) => somme + aireAnneau(poly[0]), 0);
+        const principal = e.groupes.reduce((a, b) => (geo.mesure(b) > geo.mesure(a) ? b : a));
+        const [x0, y0, x1, y1] = geo.etendue(e.groupes, principal);
+        const taille = e.groupes.reduce((somme, poly) => somme + geo.mesure(poly), 0);
         entites.push({
             id: e.code,
             nom: fiche.nom,
             article: fiche.article,
             ...(fiche.alias ? { alias: fiche.alias } : {}),
             ...(fiche.capitale || fiche.prefecture ? { capitale: fiche.capitale ?? fiche.prefecture } : {}),
+            ...(fiche.embouchure ? { embouchure: fiche.embouchure } : {}),
             ...(config.numero ? { numero: e.code } : {}),
+            // Ce qui se dessine au trait le dit lui-meme : css/carte.css coupe
+            // le remplissage sur cette classe, et js/carte.js pose par-dessus
+            // la bande transparente qui rend la ligne touchable au doigt.
+            ...(config.lignes ? { trait: 1 } : {}),
             rang: fiche.rang,
             groupe: config.groupe ? config.groupe(fiche, e.props) : fiche.region,
-            ancre: ancre(principal).map(Math.round),
+            ancre: geo.ancre(principal).map(Math.round),
             boite: [x0, y0, x1, y1].map(Math.round),
-            aire: Math.round(aire),
-            ...(aire < seuilMinuscule ? { minuscule: 1 } : {}),
-            d: chemin(e.groupes.flat()) || losange(ancre(principal))
+            [geo.champTaille]: Math.round(taille),
+            ...(taille < seuilMinuscule ? { minuscule: 1 } : {}),
+            d: geo.encoder(e.groupes.flat()) || losange(geo.ancre(principal))
         });
     }
     const orphelins = Object.keys(table)

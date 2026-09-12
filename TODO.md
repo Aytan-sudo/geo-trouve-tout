@@ -3,10 +3,94 @@
 Journal de bord du jeu. Ce qui est fait est en haut, ce qui reste en bas, et
 chaque entrée dit assez pour être reprise dans six mois sans relire le code.
 
-État au 7 septembre 2026 : **1.1.2**, 475 vérifications vertes, vérificateur iOS
-au vert sur iPhone 15 et iPhone SE.
+État au 12 septembre 2026 : **1.2.0**, 555 vérifications vertes, vérificateur
+iOS au vert sur iPhone 15 et iPhone SE.
 
 ---
+
+## 1.2.0 — Les fleuves
+
+Deux cartes de plus, et une famille de plus dans le menu : **34 cours d'eau de
+France**, **54 dans le monde**. Le pari de 1.1.0 tient — une carte de fleuves
+n'a demandé aucune ligne de moteur. Les énoncés, les sens offerts, le sac de
+tirage, le défi du jour, « Ma carte » : tout est venu des tables.
+
+**Ce qui a vraiment changé**, et c'est peu :
+
+- **Une ligne n'est pas une surface**, et `scripts/atlas.mjs` le dit désormais
+  en un seul endroit — `SURFACES` et `TRACES`, cinq fonctions chacun. Le reste
+  du fichier projette, pose, simplifie et écrit sans savoir lequel des deux il
+  tient. Les quatre atlas d'avant sont ressortis **octet pour octet
+  identiques** de ce remaniement : c'est ainsi qu'on sait qu'il n'a rien cassé.
+- Quatre différences, pas une de plus. Le tracé est **ouvert** (`trait()`, à
+  côté de `chemin()` : le refermer joindrait l'embouchure à la source d'un trait
+  droit). Sa mesure est une **longueur**. Son ancre est le **milieu du tracé**
+  (`ancreLigne`). Et sa découpe au cadre est un **Liang-Barsky segment par
+  segment** (`couperLigne`) : Sutherland-Hodgman referme ce qu'il coupe, et le
+  Rhin, qui sort du cadre et y revient, en serait ressorti avec un raccourci le
+  long du bord.
+- **Le doigt.** Un fleuve fait trois pixels de large ; on n'en attrape pas un au
+  doigt. Chaque tracé porte donc au-dessus de lui une bande transparente de
+  vingt-deux pixels (`pays-touche`, `pointer-events: stroke`). Les épaisseurs
+  sont en **pixels d'écran** (`vector-effect: non-scaling-stroke`) : sans cela,
+  trois unités sur un planisphère large de quatre mille font un tiers de pixel
+  sur un téléphone — dessiné, et invisible.
+- L'aimantation sur l'ancre, elle, est **coupée pour les tracés**. Elle sert aux
+  micro-États ; sur une ligne, elle ferait répondre « Seine » à un doigt posé
+  sur l'embouchure de la Loire, si le milieu de la Seine se trouvait plus près.
+  La bande de touche, elle, répond juste sur toute la longueur.
+- **« Où se jette-t-il ? »** est un sens de plus dans la table. Il coupe
+  l'indice de Découverte (`sansIndiceGroupe`) : le bassin de la Loire
+  répondrait à la question posée sur le Cher — le même scrupule qui tient la
+  question du numéro à l'écart de « Var (83) ».
+- **Deux propositions identiques étaient possibles**, et personne ne l'avait vu
+  parce qu'aucune carte n'en produisait : le Cher et l'Allier se jettent tous
+  les deux dans la Loire. Quatre boutons dont deux identiques, l'un juste et
+  l'autre faux, ne sont plus une question. `fabriquer()` ne garde que des
+  libellés distincts, et complète chez les voisins les plus proches **sans
+  retirer au sort** — un tirage de plus décalerait toute la manche, et le défi
+  du jour cesserait d'être le même pour tout le monde.
+- `juger()` ne connaît plus les sens un par un : tout sens qui `exige` un champ
+  se corrige en comparant à ce champ. La capitale, le numéro et l'embouchure
+  sont passés de trois branches à une.
+- « Touchez **le pays** sur la carte » était la dernière phrase du jeu à tenir
+  pour acquis qu'on y cherchait un pays. L'invite du clavier maison vient elle
+  aussi de la table des sens, maintenant : la question de l'embouchure invitait
+  à « écrire le nom ».
+- **L'aide à la saisie** (la dette décrite plus bas) se coupe désormais sur tout
+  sens qui demande un champ, et non sur le seul numéro. Elle propose des noms
+  d'entités : en mode capitales, elle offrait des noms de pays à qui cherche une
+  ville. Le code dort toujours — aucun niveau ne l'active — mais il est juste le
+  jour où il se réveillera.
+
+**Le bug que la capture a montré et qu'aucun test ne voyait.** La Volga était
+dessinée coupée en deux au milieu de la Russie. Le seuil qui jette les îlots
+invisibles jetait aussi les **tronçons de liaison** : la source la livre en
+seize morceaux dont dix font moins de cent kilomètres, et ce sont eux qui la
+relient. Un îlot minuscule qu'on jette ne manque à personne ; un tronçon court,
+si. Seuil abaissé au grain de la simplification, et `tests/test-atlas.mjs`
+mesure maintenant la distance de chaque tronçon au reste de son fleuve —
+vérifié en remettant le bug, qui le fait bien échouer.
+
+**Le contenu s'écrit à la main, et il a fallu le relire un par un.** Natural
+Earth étiquette « Conie » un tracé qui est en réalité le Loir, « Aire » un tracé
+qui finit à l'embouchure de l'Oise, « Arc » un tracé qui devient l'Isère. Aucun
+de ceux-là n'est dans le jeu : mieux vaut un fleuve manquant qu'un fleuve faux.
+Chaque tracé retenu a été vérifié contre ses coordonnées de source et
+d'embouchure. Le Colorado, lui, porte un cadre : il y en a deux dans le monde,
+un dans les Rocheuses et un en Patagonie.
+
+Reste ouvert sur les fleuves :
+
+- [ ] **L'Isère, l'Oise, l'Ain, l'Orne, l'Hérault, le Var** sont absents de
+      Natural Earth, à quelque résolution que ce soit. Une source hydrographique
+      française (SANDRE, ou l'IGN) les donnerait. À rouvrir si le manque se
+      remarque à l'usage.
+- [ ] **Le Paraná se dessine en Y**, parce que la source étiquette « Paraná » le
+      Paraguay qui le rejoint. Ce n'est pas faux — c'est le confluent — mais
+      cela se lit comme un fleuve doublé.
+- [ ] Le rang de notoriété, encore un jugement. Treize cours d'eau français en
+      Découverte : à revoir après avoir vu un enfant jouer.
 
 ## 1.1.2 — le pincement partait en vrille
 
@@ -193,25 +277,6 @@ iPhone — simulateur ou téléphone :
 
 ---
 
-## 1.2 — Les fleuves
-
-*(Le travail d'infrastructure est fait : une famille de plus dans
-`js/atlas.js`, un vocabulaire, un sens propre. Le reste est de la géométrie.)*
-
-- [ ] **Fleuves de France** (~20) et **fleuves du monde** (~30). Source :
-      Natural Earth `ne_50m_rivers_lake_centerlines`, domaine public.
-- [ ] Le moteur ne fait **aucune** différence entre une carte de pays et une
-      carte de fleuves. Ce qui change : la géométrie est une ligne, pas une
-      surface. Prévoir un champ `trait: 1` sur l'entité, et dans `carte.css`
-      un `fill: none; stroke: var(--cible); stroke-width: 3`.
-- [ ] `scripts/geometrie.mjs` calcule des aires et des ancres de polygone :
-      pour une ligne, l'ancre est le point milieu du tracé, et l'« aire » n'a
-      pas de sens — c'est la longueur qui décide de `minuscule`.
-- [ ] Le toucher d'une ligne fine est difficile au doigt : prévoir un tracé
-      transparent plus épais par-dessus (`stroke-width: 14; stroke: transparent`),
-      astuce SVG classique, à ajouter dans `creerCarte`.
-- [ ] Question supplémentaire propre aux fleuves : « où se jette-t-il ? ».
-
 ## 1.3 — Les continents
 
 - [ ] Afrique, Asie, Amériques, chacun son atlas, chacun sa projection conique.
@@ -239,8 +304,9 @@ iPhone — simulateur ou téléphone :
 
 ## Dettes et points de vigilance
 
-- **`scripts/cache/`** garde le GeoJSON source (2,9 Mo), ignoré par git. Le
-  script le retélécharge tout seul s'il manque.
+- **`scripts/cache/`** garde le GeoJSON source, ignoré par git : 2,9 Mo pour les
+  pays, 10 Mo de plus depuis les fleuves (le 1:10m mondial et son supplément
+  européen). Le script les retélécharge tout seuls s'ils manquent.
 - **Les rangs de notoriété sont un jugement**, pas une donnée. 57 pays en rang 1
   est peut-être généreux pour « Découverte » : à revoir après avoir vu un enfant
   jouer.

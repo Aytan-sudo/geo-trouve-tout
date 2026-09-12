@@ -82,15 +82,14 @@ export function choisirCibles(sac, nombre, hasard, poids = null) {
     return choisis;
 }
 
-// Ce que l'entite doit repondre dans ce sens : son nom, son chef-lieu, son
-// numero. Une seule table, et les sens s'ajoutent sans toucher au reste.
+// Ce que l'entite doit repondre dans ce sens. Un sens qui `exige` un champ
+// demande ce champ et rien d'autre — la capitale, le numero, l'embouchure ; les
+// autres demandent le nom. Les sens s'ajoutent donc sans toucher a rien.
 //
 // Le nom se donne affiche — « Var (83) ». La reponse ecrite, elle, reste
 // tolerante : js/reponse.js accepte « Var » comme « 83 ».
 const reponseDe = (entite, sens) =>
-    sens === 'capitale' ? entite.capitale
-        : sens === 'numero' ? entite.numero
-            : nomAffiche(entite);
+    SENS[sens]?.exige ? entite[SENS[sens].exige] : nomAffiche(entite);
 
 export function fabriquer(cible, sac, { niveau, sens }, hasard, { mots, alternes } = {}) {
     const reglage = NIVEAUX[niveau];
@@ -110,15 +109,43 @@ export function fabriquer(cible, sac, { niveau, sens }, hasard, { mots, alternes
         enonce: texte(SENS[sensReel].question, mots),
         reponse: reponseDe(cible, sensReel),
         propositions: [],
-        aide: reglage.aides.groupe ? cible.groupe : null,
+        // Un sens peut refuser l'indice de groupe parce qu'il y repondrait :
+        // le bassin d'un cours d'eau dit deja ou il se jette.
+        aide: reglage.aides.groupe && !SENS[sensReel].sansIndiceGroupe ? cible.groupe : null,
         zoom: reglage.aides.zoom || Boolean(cible.minuscule)
     };
 
     if (sensReel === 'localiser') return question;          // la carte est la reponse
     if (reglage.choix < 2) return question;                 // la reponse est a ecrire
 
-    const autres = distracteurs(cible, sac, reglage.choix - 1, hasard, reglage.distracteurs);
-    const textes = autres.map(e => reponseDe(e, sensReel));
+    // Deux entites peuvent donner la meme reponse : le Cher et l'Allier se
+    // jettent tous les deux dans la Loire. Quatre boutons dont deux identiques,
+    // l'un juste et l'autre faux, ne sont plus une question — c'est un aveu.
+    // On ne garde donc que des libelles distincts.
+    const vus = new Set([question.reponse]);
+    const textes = [];
+    const retenir = entite => {
+        const propose = reponseDe(entite, sensReel);
+        if (!propose || vus.has(propose)) return;
+        vus.add(propose);
+        textes.push(propose);
+    };
+    for (const autre of distracteurs(cible, sac, reglage.choix - 1, hasard, reglage.distracteurs)) {
+        retenir(autre);
+    }
+    // Ce que le doublon a coute se rattrape chez les voisins les plus proches,
+    // et sans retirer au sort : un tirage de plus decalerait toute la suite de
+    // la manche, et le defi du jour cesserait d'etre le meme pour tout le
+    // monde. Sur les cartes ou chaque entite a sa reponse — un nom, un numero,
+    // une capitale — cette boucle ne sert jamais.
+    if (textes.length < reglage.choix - 1) {
+        const proches = sac.filter(e => e.id !== cible.id)
+            .sort((a, b) => eloignement(cible, a) - eloignement(cible, b));
+        for (const autre of proches) {
+            if (textes.length >= reglage.choix - 1) break;
+            retenir(autre);
+        }
+    }
     question.propositions = hasard.melanger([question.reponse, ...textes]);
     return question;
 }

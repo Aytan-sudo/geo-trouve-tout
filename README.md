@@ -4,9 +4,10 @@ Un planisphère muet s’affiche, un pays s’allume. Vous le nommez — en choi
 parmi quatre propositions, ou en l’écrivant vous-même. Jouable au doigt, hors
 ligne, sans serveur ni dépendance.
 
-Quatre cartes : **le monde**, **l’Europe**, les **101 départements** et les
-**18 régions** de France. Ce qui vaut pour un pays vaut pour un département —
-le jeu change de carte, jamais de règle.
+Six cartes : **le monde**, **l’Europe**, les **101 départements** et les
+**18 régions** de France, et les **fleuves** — ceux de France, ceux du monde. Ce
+qui vaut pour un pays vaut pour un département et pour un fleuve : le jeu change
+de carte, jamais de règle.
 
 ## La particularité : le jeu retient ce que vous ne savez pas
 
@@ -53,9 +54,11 @@ le lien de partage (`?jour=…&carte=…`).
 | **L’Europe** | les 45 pays d’Europe | capitale |
 | **Les départements** | les 101 départements | préfecture, **numéro** |
 | **Les régions** | les 18 régions | chef-lieu |
+| **Fleuves de France** | 34 cours d’eau | **embouchure** |
+| **Fleuves du monde** | 54 cours d’eau | **embouchure** |
 
-Les cartes se rangent par famille — *Le monde*, *La France* —, et le menu se
-choisit en deux temps : la famille, puis la carte. Les cinq départements et
+Les cartes se rangent par famille — *Le monde*, *La France*, *Les fleuves* —, et
+le menu se choisit en deux temps : la famille, puis la carte. Les cinq départements et
 régions d’outre-mer ont chacun leur **cartouche**, à sa propre échelle, comme
 sur une carte d’atlas : les laisser à leur place vraie réduirait la métropole à
 un timbre-poste.
@@ -66,9 +69,22 @@ l’afficher partout l’apprend sans jamais avoir à le demander — mais la qu
 du numéro reste un exercice à part, et à l’écrit « 83 » vaut « Var ».
 
 Chaque carte porte ses mots. Le jeu écrit « Quel est ce pays ? », « Quel est ce
-département ? » et « Quelle est cette région ? » avec le même gabarit, rempli
-par le vocabulaire du fichier d’atlas — genre compris. Elle porte aussi ses
-questions : le numéro n’est proposé que là où il existe.
+département ? », « Quelle est cette région ? » et « Quel est ce cours d’eau ? »
+avec le même gabarit, rempli par le vocabulaire du fichier d’atlas — genre
+compris. Elle porte aussi ses questions : le numéro n’est proposé que là où il
+existe, l’embouchure aussi.
+
+### Un fleuve est une ligne, pas une surface
+
+C’est la seule différence que le moteur connaisse entre une carte de pays et une
+carte de fleuves, et elle tient en quatre points. La géométrie est une suite de
+points **ouverte** : la refermer joindrait l’embouchure à la source d’un trait
+droit à travers le pays. Sa mesure est une **longueur**, pas une aire — une
+ligne repliée sur elle-même en aurait une, et elle ne voudrait rien dire. Son
+ancre est le **milieu du tracé**, là où une carte scolaire pose le nom. Et
+puisqu’un doigt vise mal une ligne de trois pixels, chaque fleuve porte
+par-dessus lui une **bande transparente de vingt-deux pixels** qui l’attrape sur
+toute sa longueur — épaisseur en pixels d’écran, quel que soit le zoom.
 
 ## Les niveaux
 
@@ -90,7 +106,11 @@ nom — la carte muette de l’école, et le sens le plus naturel au doigt. Donn
 **capitale** — sa préfecture pour un département, son chef-lieu pour une région.
 Donner son **numéro**, sur les départements : 35, c’est l’Ille-et-Vilaine, et le
 clavier devient un pavé de chiffres (avec A et B, sans quoi la Corse-du-Sud
-serait intapable). Ou tout cela en alternance, sans prévenir.
+serait intapable). Dire **où il se jette**, sur les fleuves : la Loire va à
+l’Atlantique, la Marne va à la Seine — c’est toute la différence entre un fleuve
+et une rivière, et c’est la seule question du jeu à couper l’indice de
+Découverte, parce que le bassin y répondrait. Ou tout cela en alternance, sans
+prévenir.
 
 À quoi s’ajoutent, dans le menu **Nouvelle partie** : la carte, le rythme
 (manche de dix ou marathon à trois vies), et le chrono
@@ -197,6 +217,9 @@ js/ui.js           dialogues et compteurs
   les pays voisins qui servent de fond aux cartes françaises.
 - **france-geojson** (Grégoire David, Licence Ouverte) pour les départements et
   les régions, outre-mer compris.
+- **Natural Earth rivers** (domaine public) pour les tracés : le 1:50m pour le
+  planisphère, le 1:10m *plus* son supplément européen pour la France — le
+  fond mondial n’y connaît que cinq cours d’eau français.
 - **Les noms français, les capitales, les articles, les alias et les rangs de
   notoriété sont écrits et relus à la main**, dans `scripts/pays.mjs`. Ce n’est
   pas du zèle : le champ `NAME_FR` de Natural Earth est académique, et ses
@@ -205,10 +228,16 @@ js/ui.js           dialogues et compteurs
   géographie, la faute la plus probable n’est pas une erreur de code : c’est une
   capitale fausse enseignée à un enfant. Il en va de même pour les 101
   préfectures et les 18 chefs-lieux, écrits dans `scripts/france.mjs`.
+  Les 34 + 54 cours d’eau, leur bassin et leur embouchure sont écrits de même
+  dans `scripts/fleuves.mjs`, et **chaque tracé a été relu un par un** contre
+  ses coordonnées de source et d’embouchure : la source étiquette « Conie » un
+  tracé qui est le Loir, « Aire » un tracé qui finit à l’embouchure de l’Oise.
+  Ceux-là ne sont pas dans le jeu.
   `tests/test-atlas.mjs` garde ce contenu — identifiants uniques, ancres dans le
   cadre, contours non vides, aucun alias ambigu, capitales présentes, numéros
-  uniques, cartouches qui contiennent bien ce qu’ils annoncent, et pas un piège
-  qui doublerait une bonne réponse.
+  uniques, cartouches qui contiennent bien ce qu’ils annoncent, pas un piège
+  qui doublerait une bonne réponse, et, sur les cartes de fleuves, aucun tracé
+  refermé ni coupé en morceaux épars.
 
 Les frontières suivent Natural Earth et ne sont pas arbitrées ici. Israël et la
 Palestine n’ont pas de capitale déclarée : ils restent jouables sur la carte et

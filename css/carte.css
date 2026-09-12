@@ -61,12 +61,56 @@
 .pays-forme.faux { fill: var(--faux); }
 .pays-forme.indice { fill: var(--presque); }
 
+/* Un cours d'eau se dessine au trait, pas en aplat.
+ *
+ * `fill: none` n'est pas une precaution : sans lui, le navigateur referme le
+ * trace de la source a l'embouchure et peint la surface entre les deux — la
+ * Loire deviendrait une tache sur le centre de la France.
+ *
+ * L'epaisseur est en pixels d'ecran (`non-scaling-stroke`) et non en unites de
+ * carte. Sans cela un fleuve large de trois unites sur un planisphere de
+ * quatre mille mesurerait un tiers de pixel sur un telephone : il serait
+ * dessine, et invisible. */
+.pays-forme.trait {
+    fill: none;
+    stroke: var(--fleuve);
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: stroke .3s ease;
+}
+
+.pays-forme.trait.cible { stroke: var(--cible); stroke-width: 4; }
+.pays-forme.trait.juste { stroke: var(--juste); stroke-width: 4; }
+.pays-forme.trait.faux { stroke: var(--faux); stroke-width: 4; }
+.pays-forme.trait.indice { stroke: var(--presque); stroke-width: 4; }
+
+/* La bande de touche : le meme trace, large comme un doigt, et invisible.
+ * `pointer-events: stroke` la rend attrapable sans qu'elle attrape la moitie
+ * de la carte — elle n'a pas de surface, seulement son epaisseur. */
+.pays-touche {
+    fill: none;
+    stroke: transparent;
+    stroke-width: 22;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+    pointer-events: stroke;
+}
+
 /* L'option « signes » : la cible ne se distingue plus seulement par sa couleur,
  * mais par un contour tirete et une epingle systematique. */
 [data-signes="1"] .pays-forme.cible {
     stroke: var(--epingle);
     stroke-width: 2.5;
     stroke-dasharray: 7 4;
+}
+
+/* Sur un trace, le tirete remplacerait le fleuve par des pointilles au lieu de
+ * le souligner : c'est l'epaisseur qui le distingue, et l'epingle. */
+[data-signes="1"] .pays-forme.trait.cible {
+    stroke: var(--cible);
+    stroke-width: 6;
+    stroke-dasharray: none;
 }
 
 /* Les epingles vivent hors du groupe zoome : leur taille est en pixels
@@ -101,6 +145,16 @@
 .progression .pays-forme.acquis { fill: var(--acquis); }
 .progression .pays-forme.hesitant { fill: var(--hesitant); }
 .progression .pays-forme.inconnu { fill: var(--inconnu); }
+
+/* La meme chose au trait : c'est la couleur de la ligne qui dit ce qu'on sait,
+ * et elle s'epaissit pour se lire sur le fond de carte. */
+.progression .pays-forme.trait { fill: none; opacity: 1; transition: stroke .5s ease, opacity .5s ease; }
+.progression .pays-forme.trait.acquis { stroke: var(--acquis); stroke-width: 3.4; }
+.progression .pays-forme.trait.hesitant { stroke: var(--hesitant); stroke-width: 3.4; }
+/* Le gris de « jamais vu » remplit un pays et se lit ; en trait, il s'efface
+ * sur la terre, et une carte toute neuve paraissait vide au lieu de paraitre a
+ * apprendre. Le fleuve garde donc sa couleur, en retrait. */
+.progression .pays-forme.trait.inconnu { stroke: var(--fleuve); opacity: .45; stroke-width: 3.4; }
 
 @media (prefers-reduced-motion: reduce) {
     .vue { transition: opacity .2s linear; }

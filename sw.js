@@ -13,7 +13,7 @@
 // « cache d'abord » y sert alors ses propres fichiers aux autres jeux de la
 // meme origine. Reseau d'abord evite cette confusion.
 
-const CACHE = 'geo-trouve-tout-1.1.2';
+const CACHE = 'geo-trouve-tout-1.2.0';
 
 const COQUILLE = [
     './',
@@ -42,6 +42,8 @@ const COQUILLE = [
     'data/europe-pays.json',
     'data/france-departements.json',
     'data/france-regions.json',
+    'data/france-fleuves.json',
+    'data/monde-fleuves.json',
     'assets/icon.svg',
     'assets/icon-180.png',
     'assets/icon-192.png',

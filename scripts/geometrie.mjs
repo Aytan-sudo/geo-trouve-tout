@@ -34,6 +34,18 @@ export function aireAnneau(anneau) {
     return Math.abs(somme) / 2;
 }
 
+// La meme mesure, pour une ligne : ce qui decide qu'un fleuve est trop court
+// pour se voir, comme l'aire decide qu'une ile est trop petite. Une ligne n'a
+// pas d'aire — un trace replie sur lui-meme en aurait une, et elle ne voudrait
+// rien dire.
+export function longueur(ligne) {
+    let total = 0;
+    for (let i = 1; i < ligne.length; i++) {
+        total += Math.hypot(ligne[i][0] - ligne[i - 1][0], ligne[i][1] - ligne[i - 1][1]);
+    }
+    return total;
+}
+
 export function boite(anneaux) {
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     for (const anneau of anneaux) for (const [x, y] of anneau) {
@@ -100,28 +112,68 @@ function distancePointSegment([px, py], [ax, ay], [bx, by]) {
     return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
 }
 
-// Encodage en attribut `d`. Un seul « M » absolu par anneau, puis des « l »
-// relatifs : les deltas tiennent sur un ou deux chiffres la ou les coordonnees
-// absolues en demandent quatre. Sur un planisphere entier, c'est la moitie du
-// fichier.
-export function chemin(anneaux) {
+// L'ancre d'un trace : le point a mi-parcours de sa plus longue branche.
+//
+// Chercher « le point le plus loin du bord » n'a aucun sens pour une ligne —
+// il n'y a pas d'interieur, et la reponse serait toujours zero. Le milieu du
+// trace, lui, tombe forcement sur le fleuve, loin de ses deux bouts : c'est
+// ou une carte scolaire pose le nom.
+//
+// Un fleuve arrive souvent en plusieurs troncons (la Loire en compte trois, le
+// Rhone six), et rien ne dit qu'ils se suivent dans le fichier. On prend donc
+// le plus long, pas le premier.
+export function ancreLigne(lignes) {
+    const trace = lignes.reduce((a, b) => (longueur(b) > longueur(a) ? b : a));
+    const moitie = longueur(trace) / 2;
+    let parcouru = 0;
+    for (let i = 1; i < trace.length; i++) {
+        const pas = Math.hypot(trace[i][0] - trace[i - 1][0], trace[i][1] - trace[i - 1][1]);
+        if (parcouru + pas >= moitie) {
+            const t = pas === 0 ? 0 : (moitie - parcouru) / pas;
+            return [trace[i - 1][0] + t * (trace[i][0] - trace[i - 1][0]),
+                trace[i - 1][1] + t * (trace[i][1] - trace[i - 1][1])];
+        }
+        parcouru += pas;
+    }
+    return trace[Math.floor(trace.length / 2)];
+}
+
+// Encodage en attribut `d`. Un seul « M » absolu par suite de points, puis des
+// « l » relatifs : les deltas tiennent sur un ou deux chiffres la ou les
+// coordonnees absolues en demandent quatre. Sur un planisphere entier, c'est la
+// moitie du fichier.
+//
+// `minimum` est le nombre de deltas exiges : un contour ferme qui n'en a que
+// deux est un aplat invisible, une ligne qui n'en a qu'un est un segment — et
+// celui-la se dessine tres bien.
+function encoder(suites, { ferme, minimum }) {
     const morceaux = [];
-    for (const anneau of anneaux) {
-        if (anneau.length < 3) continue;
-        let px = Math.round(anneau[0][0]), py = Math.round(anneau[0][1]);
+    for (const points of suites) {
+        if (points.length < 2) continue;
+        let px = Math.round(points[0][0]), py = Math.round(points[0][1]);
         const suite = [];
-        for (let i = 1; i < anneau.length; i++) {
-            const x = Math.round(anneau[i][0]), y = Math.round(anneau[i][1]);
+        for (let i = 1; i < points.length; i++) {
+            const x = Math.round(points[i][0]), y = Math.round(points[i][1]);
             const dx = x - px, dy = y - py;
             if (dx === 0 && dy === 0) continue;
             suite.push(dx, dy);
             px = x; py = y;      // on suit la position emise, pas la position reelle :
         }                        // sinon les arrondis derivent le long du littoral
-        if (suite.length < 6) continue;
-        morceaux.push(`M${Math.round(anneau[0][0])} ${Math.round(anneau[0][1])}l${nombres(suite)}z`);
+        if (suite.length < minimum) continue;
+        morceaux.push(`M${Math.round(points[0][0])} ${Math.round(points[0][1])}l${nombres(suite)}${ferme ? 'z' : ''}`);
     }
     return morceaux.join('');
 }
+
+// Un contour : ferme, et il faut au moins trois sommets pour qu'il porte une
+// surface.
+export const chemin = anneaux =>
+    encoder(anneaux.filter(a => a.length >= 3), { ferme: true, minimum: 6 });
+
+// Un trace : ouvert. Le fermer joindrait l'embouchure a la source d'un trait
+// droit a travers le pays — ce serait un fleuve de plus, et il n'existe pas.
+// Le remplissage est coupe en CSS pour la meme raison.
+export const trait = lignes => encoder(lignes, { ferme: false, minimum: 2 });
 
 // « 12 -4 -3 -1 » s'ecrit « 12-4-3-1 » : le signe moins separe deja les nombres.
 // Un planisphere y gagne un bon dixieme de son poids, sans rien perdre.
@@ -171,4 +223,44 @@ function croisement(a, b, axe, valeur) {
     return axe === 0
         ? [valeur, a[1] + t * (b[1] - a[1])]
         : [a[0] + t * (b[0] - a[0]), valeur];
+}
+
+// Decoupe d'une ligne par une boite (Liang-Barsky, segment par segment).
+//
+// Sutherland-Hodgman ne convient pas ici : il referme ce qu'il coupe. Un fleuve
+// qui sort du cadre et y revient — le Rhin le fait deux fois sur une carte de
+// France — en ressortirait avec un raccourci le long du bord. On coupe donc
+// chaque segment pour lui-meme, et l'on rend autant de morceaux qu'il y a de
+// passages dans le cadre.
+export function couperLigne(ligne, cadre) {
+    if (!cadre) return [ligne];
+    const morceaux = [];
+    let courant = [];
+    const poser = () => { if (courant.length >= 2) morceaux.push(courant); courant = []; };
+    for (let i = 1; i < ligne.length; i++) {
+        const bout = couperSegment(ligne[i - 1], ligne[i], cadre);
+        if (!bout) { poser(); continue; }
+        // Le morceau reprend la ou le precedent s'arretait, ou bien il en
+        // commence un autre : c'est ce qui distingue un fleuve qui longe le
+        // bord d'un fleuve qui rentre et ressort.
+        const suite = courant.length && proches(courant.at(-1), bout[0]);
+        if (!suite) { poser(); courant = [bout[0]]; }
+        courant.push(bout[1]);
+    }
+    poser();
+    return morceaux;
+}
+
+const proches = (a, b) => Math.abs(a[0] - b[0]) < 1e-9 && Math.abs(a[1] - b[1]) < 1e-9;
+
+function couperSegment([ax, ay], [bx, by], [x0, y0, x1, y1]) {
+    const dx = bx - ax, dy = by - ay;
+    let t0 = 0, t1 = 1;
+    for (const [p, q] of [[-dx, ax - x0], [dx, x1 - ax], [-dy, ay - y0], [dy, y1 - ay]]) {
+        if (p === 0) { if (q < 0) return null; continue; }   // parallele au bord
+        const r = q / p;
+        if (p < 0) { if (r > t1) return null; if (r > t0) t0 = r; }
+        else { if (r < t0) return null; if (r < t1) t1 = r; }
+    }
+    return [[ax + t0 * dx, ay + t0 * dy], [ax + t1 * dx, ay + t1 * dy]];
 }

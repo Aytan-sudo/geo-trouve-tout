@@ -14,7 +14,7 @@
 // « Quel est cette région ? » a la premiere carte francaise.
 export const MOTS = {
     entite: 'pays', entites: 'pays', unEntite: 'un pays', leEntite: 'le pays',
-    ceEntite: 'ce pays', quelEst: 'Quel est', leLa: 'le',
+    ceEntite: 'ce pays', quelEst: 'Quel est', leLa: 'le', ilEntite: 'il',
     chef: 'capitale', laChef: 'la capitale', saChef: 'sa capitale', quelEstChef: 'Quelle est',
     groupe: 'continent', leGroupe: 'le continent', duGroupe: 'du même continent',
     acquis: 'acquis', jamaisVus: 'jamais vus'
@@ -95,8 +95,25 @@ export const SENS = {
         libelle: 'Donner le numéro',
         resume: 'Un département s’allume, vous tapez son numéro. 35, c’est l’Ille-et-Vilaine.',
         question: 'Quel est son numéro ?',
+        invite: 'Tapez le numéro…',
         exige: 'numero',
         chiffres: true
+    },
+    // Le sens propre aux cours d'eau, et toute la difference entre les deux
+    // mots : un fleuve finit dans la mer, une riviere dans un autre cours
+    // d'eau. La Loire va a l'Atlantique, la Marne va a la Seine.
+    //
+    // L'indice du niveau Decouverte est coupe ici, et il faut qu'il le soit :
+    // il annonce le bassin, et « Bassin de la Loire » repondrait a la question
+    // posee sur le Cher. C'est le meme scrupule qui tient la question du numero
+    // a l'ecart de « Var (83) ».
+    embouchure: {
+        libelle: 'Dire où ça se jette',
+        resume: '{UnEntite} s’allume, vous dites où {ilEntite} se jette.',
+        question: 'Où se jette {ceEntite} ?',
+        invite: 'Écrivez où il se jette…',
+        exige: 'embouchure',
+        sansIndiceGroupe: true
     },
     alterne: {
         libelle: 'En alternance',

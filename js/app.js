@@ -11,7 +11,7 @@ import { creerPartie, restaurer } from './partie.js';
 import { composerManche, sacDe, fabriquer } from './questions.js';
 import { creerMemoire, jourDe } from './memoire.js';
 import { verifier, indexer, normaliser } from './reponse.js';
-import { NIVEAUX, CHRONOS, RYTHMES, DEFAUTS, signature, sensDe, sensAlternes, nomAffiche, texte as motsDe } from './variantes.js';
+import { NIVEAUX, CHRONOS, RYTHMES, SENS, DEFAUTS, signature, sensDe, sensAlternes, nomAffiche, texte as motsDe } from './variantes.js';
 import { preferences, partie as partieRangee, souvenirs, stats, toutEffacer } from './stockage.js';
 import { appliquer as appliquerTheme, themeSuivant } from './themes.js';
 import { son, vibrer, preparerSon, activerSon } from './son.js';
@@ -23,7 +23,7 @@ import {
 } from './defi.js';
 
 const $ = id => document.getElementById(id);
-const VERSION = '1.1.2';
+const VERSION = '1.2.0';
 
 const etat = {
     reglages: preferences.lire(),
@@ -63,26 +63,25 @@ function juger(question, donnee) {
             ? { verdict: 'juste' }
             : { verdict: 'faux', correction: question.reponse };
     }
-    if (question.sens === 'capitale') {
-        return normaliser(donnee) === normaliser(entite.capitale)
+    // Les sens qui demandent un champ de l'entite — la capitale, le numero,
+    // l'embouchure — se corrigent tous de la meme facon : on compare a ce
+    // champ, et il n'y a rien a interpreter. Seul le numero a sa convention.
+    const exige = SENS[question.sens]?.exige;
+    if (exige) {
+        // « 1 » vaut « 01 » : le zero de tete est une convention d'ecriture,
+        // pas une connaissance. « 2A » et « 2B », eux, comptent a la lettre.
+        const propre = question.sens === 'numero'
+            ? v => normaliser(v).replace(/^0+(?=\w)/, '')
+            : normaliser;
+        return propre(donnee) === propre(entite[exige])
             ? { verdict: 'juste' }
-            : { verdict: 'faux', correction: entite.capitale };
-    }
-    // « 1 » vaut « 01 » : le zero de tete est une convention d'ecriture, pas une
-    // connaissance. « 2A » et « 2B », eux, comptent a la lettre.
-    if (question.sens === 'numero') {
-        const propre = v => normaliser(v).replace(/^0+(?=\w)/, '');
-        return propre(donnee) === propre(entite.numero)
-            ? { verdict: 'juste' }
-            : { verdict: 'faux', correction: entite.numero };
+            : { verdict: 'faux', correction: entite[exige] };
     }
     return verifier(donnee, entite, { index: etat.index, pieges: etat.atlas.pieges ?? [] });
 }
 
 const reponseAttendue = (question, entite) =>
-    question.sens === 'capitale' ? entite.capitale
-        : question.sens === 'numero' ? entite.numero
-            : nomAffiche(entite);
+    SENS[question.sens]?.exige ? entite[SENS[question.sens].exige] : nomAffiche(entite);
 
 function nouvellePartie({ mode = 'libre', jour = null, graine = null, cibles = null, reprise = null } = {}) {
     arreterMinuterie();
@@ -180,7 +179,8 @@ function afficherQuestion() {
         saisieActive,
         aideSaisie: aideDeSaisie(question),
         entites: etat.sac,
-        invite: inviteDe(question)
+        invite: inviteDe(question),
+        consigne: consigneDe()
     });
     rendu.pastilles(partie.etat.resultats, RYTHMES[partie.etat.config.rythme].questions, partie.etat.resultats.length);
     rendu.compteurs({
@@ -231,7 +231,9 @@ function repondre(donnee) {
     if (!resultat.juste || question.zoom) etat.carte.cadrerSur(question.cible);
 
     const detail = resultat.verdict === 'juste' ? ''
-        : resultat.message || `C’était ${question.sens === 'capitale' ? resultat.correction : avecArticle(entite)}.`;
+        // Le nom se redonne avec son article — et le numero aussi, puisque
+        // « le Var (83) » le porte deja. Tout le reste est la reponse elle-meme.
+        : resultat.message || `C’était ${nomme(question.sens) ? avecArticle(entite) : resultat.correction}.`;
     rendu.verdict(resultat.verdict, { correction: detail, message: resultat.message && `${resultat.message} C’était ${avecArticle(entite)}.` });
 
     if (etat.reglages.sons !== false) {
@@ -393,12 +395,16 @@ const carteDuJour = () => {
     return CATALOGUE.some(c => c.id === voulue) ? voulue : CONFIG_DU_JOUR.atlas;
 };
 
-// L'aide a la saisie propose des noms : elle n'a rien a dire d'un numero, et
-// l'Expert s'en passe par definition.
+// Les deux sens qui redonnent le nom de l'entite : celui qui le demande, et
+// celui du numero — « le Var (83) » porte les deux d'un coup.
+const nomme = sens => sens === 'nommer' || sens === 'numero';
+
+// L'aide a la saisie propose des noms d'entites : elle n'a rien a dire d'un
+// numero ni d'une embouchure, et l'Expert s'en passe par definition.
 const aideDeSaisie = question =>
     etat.reglages.aideSaisie !== false
     && etat.reglages.niveau !== 'expert'
-    && question.sens !== 'numero';
+    && !SENS[question.sens]?.exige;
 
 const configCourante = () => ({
     atlas: etat.reglages.atlas ?? DEFAUTS.atlas,
@@ -668,7 +674,15 @@ function clavier(disposition) {
     }, disposition);
 }
 
-const inviteDe = question => question.sens === 'numero' ? 'Tapez le numéro…' : 'Écrivez le nom…';
+// Ce qu'on lit dans le champ vide. Un sens qui demande autre chose qu'un nom
+// dit lui-meme ce qu'il attend — sans quoi la question de l'embouchure
+// invitait a « écrire le nom ».
+const inviteDe = question => SENS[question.sens]?.invite ?? 'Écrivez le nom…';
+
+// « Touchez le pays sur la carte », « Touchez le cours d’eau sur la carte ». Le
+// mot vient de l'atlas, comme les enonces : c'etait la derniere phrase du jeu a
+// tenir pour acquis qu'on y cherchait un pays.
+const consigneDe = () => motsDe('Touchez {leEntite} sur la carte.', etat.atlas?.mots);
 
 function saisir(texte) {
     const question = etat.partie?.etat.question ?? {};

@@ -11,14 +11,20 @@
 // seront une famille de plus, pas une ligne de plus dans un menu deroulant.
 export const FAMILLES = [
     { id: 'monde', nom: 'Le monde', emoji: '🌍', resume: 'Les pays de la planète' },
-    { id: 'france', nom: 'La France', emoji: '🇫🇷', resume: 'Départements et régions' }
+    { id: 'france', nom: 'La France', emoji: '🇫🇷', resume: 'Départements et régions' },
+    { id: 'fleuves', nom: 'Les fleuves', emoji: '🌊', resume: 'Les cours d’eau, et où ils se jettent' }
 ];
 
+// Le nom d'une carte doit se suffire a lui-meme : il se relit seul au palmares,
+// loin de la famille qui l'avait introduit. « La France » y designerait deux
+// cartes a la fois.
 export const CATALOGUE = [
     { id: 'monde-pays', famille: 'monde', nom: 'Le monde', sousTitre: 'Les 197 pays', emoji: '🌍' },
     { id: 'europe-pays', famille: 'monde', nom: 'L’Europe', sousTitre: 'Les 45 pays d’Europe', emoji: '🇪🇺' },
     { id: 'france-departements', famille: 'france', nom: 'Les départements', sousTitre: 'Les 101 départements, leurs préfectures et leurs numéros', emoji: '🏛️' },
-    { id: 'france-regions', famille: 'france', nom: 'Les régions', sousTitre: 'Les 18 régions et leurs chefs-lieux', emoji: '🗺️' }
+    { id: 'france-regions', famille: 'france', nom: 'Les régions', sousTitre: 'Les 18 régions et leurs chefs-lieux', emoji: '🗺️' },
+    { id: 'france-fleuves', famille: 'fleuves', nom: 'Fleuves de France', sousTitre: 'Trente-quatre cours d’eau, leur bassin et leur embouchure', emoji: '🏞️' },
+    { id: 'monde-fleuves', famille: 'fleuves', nom: 'Fleuves du monde', sousTitre: 'Cinquante-quatre fleuves, de l’Amazone à la Léna', emoji: '🌊' }
 ];
 
 const charges = new Map();

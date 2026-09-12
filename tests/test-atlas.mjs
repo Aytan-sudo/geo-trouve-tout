@@ -13,6 +13,25 @@ import { sacDe } from '../js/questions.js';
 
 const { check, report } = counter();
 
+// L'inverse de l'encodage de scripts/geometrie.mjs : « M12 30l4-2 6 1 » redevient
+// une suite de points. Les tests de traces en ont besoin pour mesurer ce que
+// l'attribut `d` dessine vraiment, et non ce que la fabrique croit y avoir mis.
+function decouper(d) {
+    const lignes = [];
+    for (const bloc of String(d ?? '').split('M').slice(1)) {
+        const [tete, suite = ''] = bloc.split('l');
+        let [x, y] = tete.trim().split(/\s+/).map(Number);
+        const ligne = [[x, y]];
+        const deltas = suite.match(/-?\d+/g)?.map(Number) ?? [];
+        for (let i = 0; i + 1 < deltas.length; i += 2) {
+            x += deltas[i]; y += deltas[i + 1];
+            ligne.push([x, y]);
+        }
+        lignes.push(ligne);
+    }
+    return lignes;
+}
+
 for (const carte of CATALOGUE) {
     console.log(`\n${carte.nom} (${carte.id})`);
     const atlas = preparer(carte.id);
@@ -26,11 +45,19 @@ for (const carte of CATALOGUE) {
 
     // Les mots de la carte remplissent les enonces : il en manque un, et le jeu
     // ecrit « Quel est  ? » sans que rien ne leve d'erreur.
-    const MOTS_ATTENDUS = ['entite', 'entites', 'unEntite', 'leEntite', 'ceEntite', 'quelEst',
-        'leLa', 'chef', 'laChef', 'saChef', 'quelEstChef', 'groupe', 'leGroupe', 'duGroupe',
-        'acquis', 'jamaisVus'];
-    const motsManquants = MOTS_ATTENDUS.filter(clef => !atlas.mots?.[clef]);
-    check('la carte porte tous ses mots', motsManquants.length === 0, motsManquants.join(','));
+    //
+    // Une carte ne doit que les mots de ses propres questions. Exiger d'elle le
+    // vocabulaire des chefs-lieux obligerait une carte de fleuves a inventer la
+    // prefecture de la Loire — et le jeu ne la lui demandera jamais.
+    const MOTS_TOUJOURS = ['entite', 'entites', 'unEntite', 'leEntite', 'ceEntite', 'quelEst',
+        'leLa', 'groupe', 'leGroupe', 'duGroupe', 'acquis', 'jamaisVus'];
+    const MOTS_DE_SENS = {
+        capitale: ['chef', 'laChef', 'saChef', 'quelEstChef'],
+        embouchure: ['ilEntite']
+    };
+    const motsAttendus = [...MOTS_TOUJOURS, ...sensDe(atlas).flatMap(sens => MOTS_DE_SENS[sens] ?? [])];
+    const motsManquants = motsAttendus.filter(clef => !atlas.mots?.[clef]);
+    check('la carte porte tous les mots de ses questions', motsManquants.length === 0, motsManquants.join(','));
 
     const ids = new Set();
     const doublons = [];
@@ -89,13 +116,68 @@ for (const carte of CATALOGUE) {
 
     // Une capitale absente n'est pas une faute — Israel et la Palestine n'en
     // ont pas de consensuelle, et le jeu les sort alors du mode capitales. Mais
-    // un pays connu sans capitale serait un oubli.
-    const connusSansCapitale = atlas.entites.filter(e => e.rang <= 2 && !e.capitale);
-    check('les pays connus ont une capitale', connusSansCapitale.length <= 2,
-        connusSansCapitale.map(e => e.nom).join(','));
+    // un pays connu sans capitale serait un oubli. Une carte de fleuves, elle,
+    // n'a pas de chefs-lieux du tout : la question ne s'y pose pas.
+    if (atlas.entites.some(e => e.capitale)) {
+        const connusSansCapitale = atlas.entites.filter(e => e.rang <= 2 && !e.capitale);
+        check('les pays connus ont une capitale', connusSansCapitale.length <= 2,
+            connusSansCapitale.map(e => e.nom).join(','));
 
-    const capitales = atlas.entites.filter(e => e.capitale).map(e => normaliser(e.capitale));
-    check('assez de chefs-lieux pour quatre propositions', new Set(capitales).size >= 12, `(${new Set(capitales).size})`);
+        const capitales = atlas.entites.filter(e => e.capitale).map(e => normaliser(e.capitale));
+        check('assez de chefs-lieux pour quatre propositions', new Set(capitales).size >= 12,
+            `(${new Set(capitales).size})`);
+    }
+
+    // Les embouchures, quand la carte en a. Une seule manquante et le cours
+    // d'eau sort du mode « ou se jette-t-il ? » sans que rien ne le signale :
+    // sur une carte de fleuves, c'est un oubli, pas un cas limite.
+    const traces = atlas.entites.filter(e => e.trait);
+    if (traces.length) {
+        check('tout y est un trace', traces.length === atlas.entites.length,
+            `(${traces.length}/${atlas.entites.length})`);
+        const sansEmbouchure = atlas.entites.filter(e => !e.embouchure);
+        check('chaque cours d’eau dit ou il se jette', sansEmbouchure.length === 0,
+            sansEmbouchure.map(e => e.nom).join(','));
+        const embouchures = new Set(atlas.entites.map(e => normaliser(e.embouchure ?? '')));
+        check('assez d’embouchures pour quatre propositions', embouchures.size >= 12,
+            `(${embouchures.size})`);
+        // Un trace ferme n'est pas un fleuve : le navigateur joindrait
+        // l'embouchure a la source et peindrait la surface entre les deux.
+        const fermes = atlas.entites.filter(e => /z/i.test(e.d));
+        check('aucun trace n’est referme', fermes.length === 0, fermes.map(e => e.nom).join(','));
+        // L'ancre d'un trace sert d'epingle : hors du trace, elle designerait
+        // un point ou le fleuve ne passe pas.
+        const horsBoite = atlas.entites.filter(e =>
+            e.ancre[0] < e.boite[0] - 1 || e.ancre[0] > e.boite[2] + 1
+            || e.ancre[1] < e.boite[1] - 1 || e.ancre[1] > e.boite[3] + 1);
+        check('chaque epingle tombe sur son trace', horsBoite.length === 0,
+            horsBoite.map(e => e.nom).join(','));
+
+        // Un fleuve troue. La source le livre en troncons, et tout ce qui les
+        // filtre en chemin — la simplification, la coupe au cadre — peut retirer
+        // celui qui reliait deux moities. Rien ne leve d'erreur : le fleuve est
+        // dessine, et il manque cent kilometres au milieu. On mesure donc la
+        // distance de chaque troncon au reste de son fleuve.
+        const ecart = e => {
+            const lignes = decouper(e.d);
+            if (lignes.length < 2) return 0;
+            let pire = 0;
+            for (let i = 0; i < lignes.length; i++) {
+                let proche = Infinity;
+                for (let j = 0; j < lignes.length; j++) {
+                    if (i === j) continue;
+                    for (const p of [lignes[i][0], lignes[i].at(-1)]) {
+                        for (const q of lignes[j]) proche = Math.min(proche, Math.hypot(p[0] - q[0], p[1] - q[1]));
+                    }
+                }
+                pire = Math.max(pire, proche);
+            }
+            return pire;
+        };
+        const troues = atlas.entites.map(e => [e, ecart(e)]).filter(([, d]) => d > largeur / 100);
+        check('aucun trace n’est coupe en morceaux epars', troues.length === 0,
+            troues.map(([e, d]) => `${e.nom} (${Math.round(d)})`).join(','));
+    }
 
     // Les numeros, quand la carte en a. Deux departements qui partagent un
     // numero rendraient la question sans reponse tranchable, et « 2A » doit

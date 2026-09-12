@@ -63,13 +63,27 @@ export function creerCarte(hote, atlas, { surTouche = null } = {}) {
     }
 
     const pays = balise('g', { class: 'pays' });
+    // Les bandes de touche vivent dans leur propre groupe, au-dessus des
+    // traces : un doigt vise mal une ligne de trois pixels de large.
+    const touches = balise('g', { class: 'touches' });
     const noeuds = new Map();
     for (const entite of atlas.entites) {
-        const chemin = balise('path', { class: 'pays-forme', d: entite.d, 'data-id': entite.id });
+        const classes = entite.trait ? 'pays-forme trait' : 'pays-forme';
+        const chemin = balise('path', { class: classes, d: entite.d, 'data-id': entite.id });
         noeuds.set(entite.id, chemin);
         pays.append(chemin);
+        // Le meme trace, epais et transparent, par-dessus. C'est l'astuce SVG
+        // habituelle pour rendre une ligne fine attrapable : la cible fait
+        // vingt-deux pixels de large quel que soit le grossissement, et le
+        // dessin, lui, n'a pas bouge d'un cheveu.
+        if (entite.trait) {
+            touches.append(balise('path', {
+                class: 'pays-touche', d: entite.d, 'data-id': entite.id, 'aria-hidden': 'true'
+            }));
+        }
     }
     vue.append(pays);
+    if (touches.childNodes.length) vue.append(touches);
     svg.append(vue);
 
     // Les marqueurs vivent hors du groupe zoome : leurs positions sont
@@ -276,13 +290,18 @@ export function creerCarte(hote, atlas, { surTouche = null } = {}) {
         // certain grossissement, on cherche l'ancre la plus proche dans un
         // rayon confortable plutot que le contour exact, sans quoi Monaco
         // resterait intouchable.
+        //
+        // Un trace, lui, n'est jamais aimante. Son ancre est son milieu, et
+        // viser l'embouchure de la Loire tomberait alors sur la Seine si son
+        // milieu se trouvait plus pres — alors que sa bande de touche, elle,
+        // suit le fleuve sur toute sa longueur et repond juste partout.
         auPoint(x, y) {
             const point = api.versCarte(x, y);
             const direct = document.elementFromPoint(x, y)?.closest('[data-id]');
             const rayon = 22 / (echelle * (svg.getBoundingClientRect().width / atlas.largeur));
             let proche = null, meilleure = rayon * rayon;
             for (const entite of atlas.entites) {
-                if (!entite.minuscule) continue;
+                if (!entite.minuscule || entite.trait) continue;
                 const d = (entite.ancre[0] - point.x) ** 2 + (entite.ancre[1] - point.y) ** 2;
                 if (d < meilleure) { meilleure = d; proche = entite.id; }
             }

@@ -24,11 +24,14 @@
     --texte: #24312b;
     --texte-doux: #6e7d74;
 
+    /* --fleuve est de l'eau posee sur de la terre : il se lit sur --decor,
+     * jamais sur --mer, et c'est ce qui le separe de la couleur de la mer. */
     --mer: #c5dfec;
     --terre: #a9cf94;
     --terre-trait: #f4f6f2;
     --decor: #cfd2c8;
     --decor-trait: #e6e8e2;
+    --fleuve: #3f87b0;
     --cible: #a3231f;
     --cible-halo: #a3231f40;
     --epingle: #a3231f;
@@ -60,6 +63,7 @@
     --terre-trait: #f6f1e4;
     --decor: #cdc4ac;
     --decor-trait: #e3dcca;
+    --fleuve: #4d7f9c;
     --cible: #a63a1c;
     --cible-halo: #a63a1c40;
     --epingle: #a63a1c;
@@ -91,6 +95,7 @@
     --terre-trait: #102337;
     --decor: #46586c;
     --decor-trait: #2b3d51;
+    --fleuve: #7fc4e8;
     --cible: #e8663a;
     --cible-halo: #e8663a4d;
     --epingle: #ffb08a;
@@ -122,6 +127,7 @@
     --terre-trait: #11131a;
     --decor: #262a33;
     --decor-trait: #1a1d25;
+    --fleuve: #5b91c4;
     --cible: #f0a93b;
     --cible-halo: #f0a93b40;
     --epingle: #ffd085;
@@ -156,6 +162,7 @@
     --terre-trait: #6d8478;
     --decor: #2a352f;
     --decor-trait: #47574e;
+    --fleuve: #8fc2d8;
     --cible: #f2efe2;
     --cible-halo: #f2efe24d;
     --epingle: #f2efe2;
