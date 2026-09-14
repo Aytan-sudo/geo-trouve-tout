@@ -9,6 +9,11 @@ Six cartes : **le monde**, **l’Europe**, les **101 départements** et les
 qui vaut pour un pays vaut pour un département et pour un fleuve : le jeu change
 de carte, jamais de règle.
 
+## Version 1.3.2 — Passeport 1.1.0
+
+Module commun du passeport 1.1.0, qui raccorde SUTOM au thème Mots. Rien ne
+change dans le jeu.
+
 ## Version 1.3.1 — Passeport plus robuste
 
 Module commun du passeport 1.0.1 : une donnée abîmée n’empêche plus l’export ni

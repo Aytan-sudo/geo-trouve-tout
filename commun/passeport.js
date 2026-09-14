@@ -1,4 +1,4 @@
-/* Passeport 1.0.1 — source commune, distribuée par scripts/distribuer.mjs.
+/* Passeport 1.1.0 — source commune, distribuée par scripts/distribuer.mjs.
  * Aucun réseau. Une entrée indépendante par profil / jeu / journée évite
  * qu'une partie dans un autre onglet écrase les tampons de son voisin.
  */
@@ -18,7 +18,9 @@
     };
     const JEUX = {
         'geo-trouve-tout': { theme: 'geo', questions: 10, stockage: 'geo', nom: 'Géo Trouve-Tout' },
-        html_multiplication: { theme: 'nombres', questions: 10, stockage: 'multiplication', nom: 'Multiplication' }
+        html_multiplication: { theme: 'nombres', questions: 10, stockage: 'multiplication', nom: 'Multiplication' },
+        // Dix mots acceptés par le dictionnaire dans la journée, sur plusieurs parties si besoin.
+        sutom: { theme: 'mots', questions: 10, stockage: 'sutom', nom: 'SUTOM' }
     };
     const ESPACES = Object.values(JEUX).map(j => j.stockage);
     const idValide = x => typeof x === 'string' && /^[a-zA-Z0-9_-]{8,64}$/.test(x);
@@ -58,7 +60,8 @@
         if (parts[0] === 'jeu' && parts.length === 4) {
             if (!idValide(parts[1]) || !nomValide(parts[2])
                 || !/^[a-zA-Z0-9_.%~-]{1,240}$/.test(parts[3]) || typeof valeur !== 'string' || valeur.length > 500000) return false;
-            try { const data = JSON.parse(valeur); return objet(data) || Array.isArray(data); } catch { return false; }
+            // Tout JSON valide : un jeu range aussi des drapeaux (« true ») ou des nombres.
+            try { JSON.parse(valeur); return true; } catch { return false; }
         }
         return false;
     }
@@ -287,11 +290,13 @@
             const anciens = [];
             for (let i = 0; i < stockage.length; i++) {
                 const k = stockage.key(i);
-                if (['geo.preferences', 'geo.memoire', 'geo.stats', 'geo.partie', 'gameConfig', 'highscores'].includes(k) || k?.startsWith(`stats:${profil(id).nom}:`)) anciens.push(k);
+                if (['geo.preferences', 'geo.memoire', 'geo.stats', 'geo.partie', 'gameConfig', 'highscores',
+                    'sutom.stats', 'sutom.daily', 'sutom.settings', 'sutom.recent', 'sutom.help-seen', 'sutom.game'].includes(k)
+                    || k?.startsWith(`stats:${profil(id).nom}:`)) anciens.push(k);
             }
             let copies = 0;
             for (const k of anciens) {
-                const jeu = k.startsWith('geo.') ? 'geo' : 'multiplication';
+                const jeu = k.startsWith('geo.') ? 'geo' : k.startsWith('sutom.') ? 'sutom' : 'multiplication';
                 let cible = k;
                 if (k.startsWith('stats:')) cible = k.replace(`stats:${profil(id).nom}:`, 'stats:profil:');
                 const cle = `jeu/${id}/${jeu}/${encodeURIComponent(cible)}`;
