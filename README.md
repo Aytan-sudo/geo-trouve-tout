@@ -9,6 +9,13 @@ Six cartes : **le monde**, **l’Europe**, les **101 départements** et les
 qui vaut pour un pays vaut pour un département et pour un fleuve : le jeu change
 de carte, jamais de règle.
 
+## Version 1.4.0 — Une manche réussie, un tampon
+
+Le tampon Géographie tombe aussi quand une partie est réussie, même avant dix
+réponses (des questions expirées ont pu en prendre la place) : une manche à
+6 sur 10 au moins — le seuil du son de victoire —, ou une série de dix en
+marathon. Dix réponses essayées suffisent toujours. Passeport commun 1.2.0.
+
 ## Version 1.3.2 — Passeport 1.1.0
 
 Module commun du passeport 1.1.0, qui raccorde SUTOM au thème Mots. Rien ne

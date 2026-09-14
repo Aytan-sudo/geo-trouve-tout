@@ -1,6 +1,6 @@
 {
   "name": "geo-trouve-tout",
-  "version": "1.3.2",
+  "version": "1.4.0",
   "private": true,
   "description": "Un planisphère muet, un pays qui s'allume. Nommez-le, au doigt ou au clavier.",
   "type": "module",

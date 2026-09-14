@@ -23,7 +23,7 @@ import {
 } from './defi.js';
 
 const $ = id => document.getElementById(id);
-const VERSION = '1.3.2';
+const VERSION = '1.4.0';
 
 const etat = {
     reglages: preferences.lire(),
@@ -288,6 +288,11 @@ function terminer() {
     arreterMinuterie();
     const bilan = etat.partie.bilan();
     const config = etat.partie.etat.config;
+    // Une manche réussie (6 sur 10 au moins, le seuil du son de victoire) ou une
+    // série de dix en marathon donnent le tampon, même avant dix réponses : des
+    // questions expirées ont pu en prendre la place.
+    const reussie = config.rythme === 'marathon' ? bilan.serie >= 10 : bilan.total > 0 && bilan.score >= bilan.total * 0.6;
+    if (reussie) globalThis.Passeport?.noter('geo-trouve-tout', etat.passeportProgression.reponses, true);
     if (etat.reglages.sons !== false) son.fin(bilan.score >= bilan.total * 0.6);
     stats.noter({
         signature: signature(config),
