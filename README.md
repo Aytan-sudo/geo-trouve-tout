@@ -9,6 +9,12 @@ Six cartes : **le monde**, **l’Europe**, les **101 départements** et les
 qui vaut pour un pays vaut pour un département et pour un fleuve : le jeu change
 de carte, jamais de règle.
 
+## Version 1.3.1 — Passeport plus robuste
+
+Module commun du passeport 1.0.1 : une donnée abîmée n’empêche plus l’export ni
+l’ouverture des autres profils, et le jeu continue de fonctionner quand le hub
+raccorde de nouveaux jeux avant sa propre mise à jour.
+
 ## Version 1.3.0 — Le passeport commun
 
 Depuis le hub, choisir un enfant ouvre le jeu avec ses préférences, sa mémoire,

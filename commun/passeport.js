@@ -1,4 +1,4 @@
-/* Passeport 1.0.0 — source commune, distribuée par scripts/distribuer.mjs.
+/* Passeport 1.0.1 — source commune, distribuée par scripts/distribuer.mjs.
  * Aucun réseau. Une entrée indépendante par profil / jeu / journée évite
  * qu'une partie dans un autre onglet écrase les tampons de son voisin.
  */
@@ -20,7 +20,12 @@
         'geo-trouve-tout': { theme: 'geo', questions: 10, stockage: 'geo', nom: 'Géo Trouve-Tout' },
         html_multiplication: { theme: 'nombres', questions: 10, stockage: 'multiplication', nom: 'Multiplication' }
     };
+    const ESPACES = Object.values(JEUX).map(j => j.stockage);
     const idValide = x => typeof x === 'string' && /^[a-zA-Z0-9_-]{8,64}$/.test(x);
+    // Chaque jeu embarque sa propre copie du module : une copie plus ancienne
+    // doit lire, conserver et exporter les jeux raccordés après elle.
+    const jeuValide = x => typeof x === 'string' && /^[a-zA-Z0-9_-]{1,64}$/.test(x);
+    const nomValide = x => typeof x === 'string' && /^[a-z0-9_-]{1,32}$/.test(x);
     const objet = x => x !== null && typeof x === 'object' && !Array.isArray(x);
     const jourLocal = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     function numeroJour(iso) {
@@ -41,16 +46,17 @@
                 && AVATARS.includes(valeur.avatar) && PALETTES.includes(valeur.palette)
                 && Number.isInteger(valeur.objectif) && valeur.objectif >= 2 && valeur.objectif <= 7
                 && Array.isArray(valeur.activites) && valeur.activites.length >= 1
-                && valeur.activites.every(j => Object.hasOwn(JEUX, j))
+                && valeur.activites.every(jeuValide)
                 && typeof valeur.archive === 'boolean' && Number.isFinite(numeroJour(valeur.creeLe));
         }
         if (parts[0] === 'activite' && parts.length === 4) {
-            return idValide(parts[1]) && Number.isFinite(numeroJour(parts[2])) && Object.hasOwn(JEUX, parts[3])
+            return idValide(parts[1]) && Number.isFinite(numeroJour(parts[2])) && jeuValide(parts[3])
                 && objet(valeur) && valeur.profil === parts[1] && valeur.jour === parts[2] && valeur.jeu === parts[3]
-                && valeur.theme === JEUX[parts[3]].theme && typeof valeur.pedagogique === 'boolean';
+                && nomValide(valeur.theme) && (!Object.hasOwn(JEUX, parts[3]) || valeur.theme === JEUX[parts[3]].theme)
+                && typeof valeur.pedagogique === 'boolean';
         }
         if (parts[0] === 'jeu' && parts.length === 4) {
-            if (!idValide(parts[1]) || !['geo', 'multiplication'].includes(parts[2])
+            if (!idValide(parts[1]) || !nomValide(parts[2])
                 || !/^[a-zA-Z0-9_.%~-]{1,240}$/.test(parts[3]) || typeof valeur !== 'string' || valeur.length > 500000) return false;
             try { const data = JSON.parse(valeur); return objet(data) || Array.isArray(data); } catch { return false; }
         }
@@ -60,12 +66,23 @@
         const alertes = new Set();
         const signal = message => { alertes.add(message); signaler(message); };
         const erreur = message => { signal(message); return new Error(message); };
+        // Le repère « .secours » copie le coffre courant ; « .precedent » garde
+        // celui d'avant la dernière restauration. La version 1.0.0 rangeait ce
+        // dernier dans « .secours » : un repère abîmé ramenait alors en silence
+        // aux données d'avant l'import. On remet les deux à leur place.
+        try {
+            const id = stockage.getItem(RACINE), copie = stockage.getItem(RACINE + '.secours');
+            if (idValide(id) && copie !== id) {
+                if (idValide(copie)) stockage.setItem(RACINE + '.precedent', copie);
+                stockage.setItem(RACINE + '.secours', id);
+            }
+        } catch { /* réessayé au prochain chargement */ }
         function generation() {
             const id = stockage.getItem(RACINE);
-            if (!id) return 'principal';
             if (idValide(id)) return id;
-            const secours = stockage.getItem(RACINE + '.secours');
-            if (idValide(secours)) { signal('Une copie de secours du coffre est utilisée. Exporte une sauvegarde.'); return secours; }
+            const copie = stockage.getItem(RACINE + '.secours');
+            if (!id && (!copie || copie === 'principal')) return 'principal';
+            if (idValide(copie)) { signal('Le repère du coffre a été récupéré depuis sa copie. Exporte une sauvegarde.'); return copie; }
             throw erreur('Le coffre est illisible. Restaure une sauvegarde avant de créer un profil.');
         }
         const adresse = (cle, gen = generation()) => `${PREFIXE}${gen}.${cle}`;
@@ -119,7 +136,12 @@
             }
             return [...noms];
         }
-        const profils = (archives = false) => cles().filter(k => k.startsWith('profil/')).map(lire)
+        // Pour les listes : une entrée abîmée est signalée par lire() puis mise
+        // de côté, sans priver les autres enfants de leur passeport.
+        function lireOuIgnorer(cle) {
+            try { return lire(cle); } catch { return undefined; }
+        }
+        const profils = (archives = false) => cles().filter(k => k.startsWith('profil/')).map(lireOuIgnorer)
             .filter(p => p && (archives || !p.archive)).sort((a, b) => a.creeLe.localeCompare(b.creeLe) || a.nom.localeCompare(b.nom, 'fr'));
         const profil = id => idValide(id) ? lire(`profil/${id}`) : null;
         function modifierProfil(id, changements) {
@@ -158,7 +180,7 @@
             const n = numeroJour(aujourdHui);
             if (!p || !Number.isFinite(n)) throw new Error('Profil ou date indisponible.');
             const lundi = n - ((new Date(n * 86400000).getUTCDay() + 6) % 7);
-            const activites = cles().filter(k => k.startsWith(`activite/${id}/`)).map(lire).filter(Boolean);
+            const activites = cles().filter(k => k.startsWith(`activite/${id}/`)).map(lireOuIgnorer).filter(Boolean);
             const jours = new Set(activites.filter(a => a.pedagogique && a.jour <= aujourdHui).map(a => a.jour));
             const semaine = Array.from({ length: 7 }, (_, i) => { const jour = dateDuNumero(lundi + i); return { jour, valide: jours.has(jour), aujourdHui: jour === aujourdHui }; });
             const themes = Object.fromEntries(Object.keys(THEMES).map(t => {
@@ -168,10 +190,26 @@
             }));
             return { profil: p, semaine, joursSemaine: semaine.filter(j => j.valide).length, joursTotal: jours.size, themes, objectifAtteint: semaine.filter(j => j.valide).length >= p.objectif };
         }
-        function exporter() {
-            const donnees = Object.fromEntries(cles().map(k => [k, lire(k)]));
-            return JSON.stringify({ format: 'jeux-aymeric-passeport', version: VERSION, exporteLe: maintenant().toISOString(), donnees }, null, 2);
+        // L'export sert surtout quand quelque chose s'est abîmé : il emporte tout
+        // ce qui reste lisible et nomme ce qu'il a dû laisser.
+        function preparerExport() {
+            const donnees = {};
+            const ignorees = [];
+            for (const k of cles()) {
+                const valeur = lireOuIgnorer(k);
+                if (valeur === undefined) ignorees.push(k); else donnees[k] = valeur;
+            }
+            // Le fichier doit rester restaurable : l'import refuse une progression sans son profil.
+            const ids = new Set(Object.keys(donnees).filter(k => k.startsWith('profil/') && donnees[k]).map(k => donnees[k].id));
+            if (!ids.size) throw new Error(ignorees.length ? 'Aucun passeport lisible à exporter.' : 'Aucun passeport à exporter pour le moment.');
+            for (const k of Object.keys(donnees)) {
+                if (/^(activite|jeu)\//.test(k) && donnees[k] !== null && !ids.has(k.split('/')[1])) { delete donnees[k]; ignorees.push(k); }
+            }
+            if (donnees.actif && !ids.has(donnees.actif)) donnees.actif = '';
+            const texte = JSON.stringify({ format: 'jeux-aymeric-passeport', version: VERSION, exporteLe: maintenant().toISOString(), donnees }, null, 2);
+            return { texte, ignorees };
         }
+        const exporter = () => preparerExport().texte;
         function preparerImport(texte) {
             if (typeof texte !== 'string' || texte.length > 4000000) throw new Error('Le fichier dépasse la taille autorisée (4 Mo).');
             let fichier;
@@ -189,6 +227,8 @@
         function restaurer(texte) {
             preparerImport(texte); // revalider au dernier instant, avant toute écriture
             const donnees = JSON.parse(texte).donnees;
+            // Un repère illisible ne dit pas quel coffre était le bon : on n'efface alors rien.
+            const repereSain = idValide(stockage.getItem(RACINE)) || stockage.getItem(RACINE) === null;
             let avant;
             try { avant = generation(); } catch { avant = 'principal'; }
             const suivant = uuid();
@@ -203,13 +243,16 @@
                     nouvellesCles.push(k + '.secours');
                     stockage.setItem(k + '.secours', brut);
                 }
-                stockage.setItem(RACINE + '.secours', avant);
+                stockage.setItem(RACINE + '.precedent', avant);
                 // Bascule atomique : les anciennes données restent intactes.
                 stockage.setItem(RACINE, suivant);
             } catch {
                 for (const k of nouvellesCles) try { stockage.removeItem(k); } catch { /* anciennes données conservées */ }
                 throw erreur('Restauration impossible, probablement par manque de place. Le coffre actuel est conservé.');
             }
+            try { stockage.setItem(RACINE + '.secours', suivant); }
+            catch { signal('Sauvegarde restaurée, mais la copie du repère du coffre n’a pas pu être écrite. Exporte une sauvegarde.'); }
+            if (!repereSain) return suivant;
             // Ne garder qu'un coffre précédent : les restaurations répétées ne
             // doivent pas saturer le stockage. Aucune donnée de jeu extérieur
             // au passeport n'est touchée.
@@ -223,7 +266,7 @@
             return suivant;
         }
         function stockageJeu(jeu, id) {
-            if (!profil(id) || profil(id).archive || !['geo', 'multiplication'].includes(jeu)) return null;
+            if (!profil(id) || profil(id).archive || !ESPACES.includes(jeu)) return null;
             const gen = generation();
             const temporaire = new Map();
             const cle = k => `jeu/${id}/${jeu}/${encodeURIComponent(k)}`;
@@ -257,7 +300,7 @@
             }
             return copies;
         }
-        return { lire, ecrire, cles, profils, profil, creerProfil, modifierProfil, choisir, noter, bilan, exporter, preparerImport, restaurer, stockageJeu, reprendreAncien, generation, alertes };
+        return { lire, ecrire, cles, profils, profil, creerProfil, modifierProfil, choisir, noter, bilan, exporter, preparerExport, preparerImport, restaurer, stockageJeu, reprendreAncien, generation, alertes };
     }
     const constantes = { VERSION, AVATARS, PALETTES, THEMES, JEUX, jourLocal, numeroJour, creerCoffre };
     if (typeof module !== 'undefined' && module.exports) module.exports = constantes;
