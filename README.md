@@ -34,7 +34,7 @@ ses statistiques et sa reprise de partie propres. Dix réponses réellement
 essayées donnent un tampon Géographie ; les erreurs comptent et les expirations
 seules ne comptent pas. Le bandeau ramène au passeport et indique la validation.
 Renommer le profil conserve les données. Une partie reprise conserve le nombre
-de réponses du jour. Le mode invité garde les anciennes données, qu’un parent
+de réponses du jour. Le mode invité garde les anciennes données, que l’administrateur
 peut copier explicitement dans le hub. L’export du hub inclut ces données.
 Les fichiers communs sont embarqués pour fonctionner hors ligne ; le service
 worker ne purge plus les caches des autres jeux.
