@@ -9,6 +9,18 @@ Six cartes : **le monde**, **l’Europe**, les **101 départements** et les
 qui vaut pour un pays vaut pour un département et pour un fleuve : le jeu change
 de carte, jamais de règle.
 
+## Version 1.3.0 — Le passeport commun
+
+Depuis le hub, choisir un enfant ouvre le jeu avec ses préférences, sa mémoire,
+ses statistiques et sa reprise de partie propres. Dix réponses réellement
+essayées donnent un tampon Géographie ; les erreurs comptent et les expirations
+seules ne comptent pas. Le bandeau ramène au passeport et indique la validation.
+Renommer le profil conserve les données. Une partie reprise conserve le nombre
+de réponses du jour. Le mode invité garde les anciennes données, qu’un parent
+peut copier explicitement dans le hub. L’export du hub inclut ces données.
+Les fichiers communs sont embarqués pour fonctionner hors ligne ; le service
+worker ne purge plus les caches des autres jeux.
+
 ## La particularité : le jeu retient ce que vous ne savez pas
 
 Un quiz de géographie qui tire au hasard vous repose éternellement les pays que

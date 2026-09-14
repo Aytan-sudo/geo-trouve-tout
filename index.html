@@ -12,6 +12,9 @@
 <link rel="stylesheet" href="css/themes.css">
 <link rel="stylesheet" href="css/carte.css">
 <link rel="stylesheet" href="css/interface.css">
+<link rel="stylesheet" href="commun/passeport.css">
+<script src="commun/passeport.js"></script>
+<script src="commun/liaison.js" defer></script>
 <script>
     // Le theme se pose avant le premier pixel.
     //
@@ -22,7 +25,7 @@
     // deux et refuse qu'elles divergent.
     try {
         const THEMES = { ecolier: '#f4f6f2', atlas: '#f6f1e4', marine: '#0e1b2a', encre: '#15171d', craie: '#1b2420' };
-        const preferences = JSON.parse(localStorage.getItem('geo.preferences') || '{}');
+        const preferences = JSON.parse((Passeport.stockageJeu('geo') || localStorage).getItem('geo.preferences') || '{}');
         const couleur = THEMES[preferences.theme];
         if (couleur) {
             document.documentElement.dataset.theme = preferences.theme;
@@ -34,6 +37,7 @@
 <body>
 
 <div class="page">
+    <div class="passeport-ruban" data-passeport-ruban data-jeu="geo-trouve-tout"></div>
 
     <header class="barre">
         <button type="button" class="titre" id="stats-ouvrir" aria-label="Résultats et séries">

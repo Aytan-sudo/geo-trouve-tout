@@ -23,7 +23,7 @@ import {
 } from './defi.js';
 
 const $ = id => document.getElementById(id);
-const VERSION = '1.2.0';
+const VERSION = '1.3.0';
 
 const etat = {
     reglages: preferences.lire(),
@@ -38,6 +38,7 @@ const etat = {
     graine: 0,
     attenteSuivant: false,
     progression: false,
+    passeportProgression: { jour: dateISO(), reponses: 0 },
     minuterie: null
 };
 
@@ -85,6 +86,7 @@ const reponseAttendue = (question, entite) =>
 
 function nouvellePartie({ mode = 'libre', jour = null, graine = null, cibles = null, reprise = null } = {}) {
     arreterMinuterie();
+    etat.passeportProgression = reprise?.passeportProgression ?? { jour: dateISO(), reponses: 0 };
     etat.mode = mode;
     etat.jour = jour ?? dateISO();
     // La configuration dit la carte reellement en jeu, pas celle qu'un reglage
@@ -214,6 +216,14 @@ function repondre(donnee) {
         ? etat.partie.expirer(performance.now())
         : etat.partie.repondre(donnee, performance.now());
     if (!resultat) return;
+
+    // Les expirations sans réponse ne donnent pas de tampon. Chaque nouvelle
+    // journée repart de zéro, même si la manche a commencé la veille.
+    if (donnee !== null && donnee !== undefined && String(donnee).trim()) {
+        if (etat.passeportProgression.jour !== dateISO()) etat.passeportProgression = { jour: dateISO(), reponses: 0 };
+        etat.passeportProgression.reponses++;
+        globalThis.Passeport?.noter('geo-trouve-tout', etat.passeportProgression.reponses);
+    }
 
     const entite = etat.atlas.parId.get(question.cible);
     if (question.propositions.length) rendu.marquerChoix(question.reponse, String(donnee));
@@ -383,7 +393,7 @@ function ranger() {
     if (!etat.partie || etat.partie.etat.finie) return;
     partieRangee.ecrire({
         ...etat.partie.serialiser(),
-        mode: etat.mode, jour: etat.jour, graine: etat.graine
+        mode: etat.mode, jour: etat.jour, graine: etat.graine, passeportProgression: etat.passeportProgression
     });
 }
 

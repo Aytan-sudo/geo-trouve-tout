@@ -13,10 +13,13 @@
 // « cache d'abord » y sert alors ses propres fichiers aux autres jeux de la
 // meme origine. Reseau d'abord evite cette confusion.
 
-const CACHE = 'geo-trouve-tout-1.2.0';
+const CACHE = 'geo-trouve-tout-1.3.0';
 
 const COQUILLE = [
     './',
+    'commun/passeport.js',
+    'commun/liaison.js',
+    'commun/passeport.css',
     'index.html',
     'manifest.webmanifest',
     'css/themes.css',
@@ -59,7 +62,7 @@ self.addEventListener('install', evenement => {
 self.addEventListener('activate', evenement => {
     evenement.waitUntil(
         caches.keys()
-            .then(noms => Promise.all(noms.filter(nom => nom !== CACHE).map(nom => caches.delete(nom))))
+            .then(noms => Promise.all(noms.filter(nom => nom.startsWith('geo-trouve-tout-') && nom !== CACHE).map(nom => caches.delete(nom))))
             .then(() => self.clients.claim())
     );
 });

@@ -29,7 +29,7 @@ function coffre() {
     }
 }
 
-const magasin = coffre();
+const magasin = globalThis.Passeport?.stockageJeu('geo') ?? coffre();
 
 function lire(clef, defaut) {
     try {
