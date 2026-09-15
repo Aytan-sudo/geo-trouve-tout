@@ -9,6 +9,11 @@ Six cartes : **le monde**, **l’Europe**, les **101 départements** et les
 qui vaut pour un pays vaut pour un département et pour un fleuve : le jeu change
 de carte, jamais de règle.
 
+## Version 1.4.2 — Passeport 1.4.0
+
+Module commun du passeport 1.4.0, qui raccorde Démineur et Slitherlink au thème
+Logique. Rien ne change dans le jeu.
+
 ## Version 1.4.1 — Passeport 1.3.0
 
 Module commun du passeport 1.3.0 (style sobre et objectif facultatif pour les
