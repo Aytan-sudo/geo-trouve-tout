@@ -9,6 +9,11 @@ Six cartes : **le monde**, **l’Europe**, les **101 départements** et les
 qui vaut pour un pays vaut pour un département et pour un fleuve : le jeu change
 de carte, jamais de règle.
 
+## Version 1.4.4 — Passeport 1.6.0
+
+Module commun du passeport 1.6.0 : Polyominos et Mosaïcomino rejoignent le thème
+Logique. Rien ne change dans le jeu.
+
 ## Version 1.4.3 — Passeport 1.5.0
 
 Module commun du passeport 1.5.0 : L’Architecte et Solitaire rejoignent le thème
