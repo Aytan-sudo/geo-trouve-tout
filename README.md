@@ -9,6 +9,12 @@ Six cartes : **le monde**, **l’Europe**, les **101 départements** et les
 qui vaut pour un pays vaut pour un département et pour un fleuve : le jeu change
 de carte, jamais de règle.
 
+## Version 1.4.5 — Passeport 1.7.0
+
+Module commun du passeport 1.7.0 : 2048 rejoint le thème Nombres, Snake ouvre le
+thème Aventure, Motamorphose le thème Mots, et Dames, Diamants, Laser & Miroirs
+et Untangle rejoignent le thème Logique. Rien ne change dans le jeu.
+
 ## Version 1.4.4 — Passeport 1.6.0
 
 Module commun du passeport 1.6.0 : Polyominos et Mosaïcomino rejoignent le thème
