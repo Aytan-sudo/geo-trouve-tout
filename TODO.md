@@ -284,9 +284,10 @@ du ressort d'un vrai téléphone.
       sur un haut-parleur de téléphone : dans le simulateur, le son sort du Mac.
       C'est le point le plus probable de panne silencieuse — il a coûté trois
       versions à 2048.
-- [ ] **La vibration** (`navigator.vibrate`) : sans effet sur iOS Safari à ce
-      jour, l'option existe et ne coûte rien. À vérifier, et à documenter comme
-      limite si elle reste muette.
+- [x] **La vibration** : réglé sans téléphone. `navigator.vibrate` est
+      `undefined` dans Safari d'iOS 26.5 — l'API n'existe pas sur iPhone.
+      L'option reste (elle sert sur Android) mais ne fera jamais rien ici :
+      c'est une limite à documenter, pas un bogue à chercher.
 
 ---
 
