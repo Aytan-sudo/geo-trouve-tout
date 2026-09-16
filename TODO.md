@@ -258,19 +258,32 @@ elles ne levaient aucune erreur et ne se voyaient qu'à l'œil.
 ## À faire d'abord : ce que WebKit ne sait pas dire
 
 Le vérificateur du dossier `OUTILS` tourne dans WebKit **sur macOS**. Cinq
-points lui échappent, et aucun n'est vérifié à ce jour. Ils demandent un vrai
-iPhone — simulateur ou téléphone :
+points lui échappaient. Depuis septembre 2026, il sait aussi ouvrir le jeu dans
+le **simulateur iOS de Xcode** (`--simulateur`, et `--installer` pour le mode
+écran d'accueil) : trois de ces points s'y vérifient maintenant, deux restent
+du ressort d'un vrai téléphone.
+
+**Le simulateur y répond** — à dérouler ici, une dizaine de minutes :
+
+- [ ] **L'installation sur l'écran d'accueil** et le mode `standalone` :
+      `node ../OUTILS/verifier-ios.mjs --installer` ouvre le jeu, attend qu'on
+      l'ajoute à l'écran d'accueil à la main, puis relève tout en standalone.
+      Sur les trois jeux essayés, l'écran passe de 695 à 793 px de haut.
+- [ ] **La safe-area réelle** : elle vaut 0 partout dans un onglet Safari — la
+      barre d'état appartient au navigateur — et prend ses vraies valeurs en
+      standalone (34 px en bas pour la barre d'accueil sur iPhone 15).
+- [ ] **La barre Safari qui se rétracte** : le simulateur la montre telle
+      qu'elle est, flottante depuis iOS 26, et la ligne « premier écran » du
+      vérificateur dit ce qui passe dessous.
+
+**Seul un vrai téléphone peut le dire** :
 
 - [ ] **Le son.** Il est écrit selon les deux règles de la convention (plancher
       à 311 Hz, contexte audio préparé au premier `pointerdown` dans `app.js`),
       et `tests/test-son.mjs` garde le plancher. Mais personne ne l'a entendu
-      sur un haut-parleur de téléphone. C'est le point le plus probable de
-      panne silencieuse — il a coûté trois versions à 2048.
-- [ ] **L'installation sur l'écran d'accueil** et le mode `standalone` : le
-      manifeste est complet, l'icône 180 est en PNG, rien ne le prouve.
-- [ ] **La safe-area réelle** sous l'encoche et la barre d'accueil.
-- [ ] **La barre Safari qui se rétracte** au défilement : la mise en page est en
-      `height: 100%` avec `env(safe-area-inset-*)`, à confirmer en vrai.
+      sur un haut-parleur de téléphone : dans le simulateur, le son sort du Mac.
+      C'est le point le plus probable de panne silencieuse — il a coûté trois
+      versions à 2048.
 - [ ] **La vibration** (`navigator.vibrate`) : sans effet sur iOS Safari à ce
       jour, l'option existe et ne coûte rien. À vérifier, et à documenter comme
       limite si elle reste muette.
