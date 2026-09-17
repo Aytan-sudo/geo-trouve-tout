@@ -23,7 +23,7 @@ import {
 } from './defi.js';
 
 const $ = id => document.getElementById(id);
-const VERSION = '1.4.6';
+const VERSION = '1.4.7';
 
 const etat = {
     reglages: preferences.lire(),
